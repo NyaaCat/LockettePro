@@ -1,0 +1,24 @@
+name: LockettePro
+main: me.crafter.mc.lockettepro.LockettePro
+author: connection_lost
+softdepend: [Vault, WorldGuard, Residence, Towny, ProtocolLib, Factions, ASkyBlock, PlotSquared, SimpleClans]
+loadbefore: [SignShop]
+version: 2.8.1
+description: >
+             LockettePro is a chest protection plugin for Bukkit. It is 100% compatible with original Lockette, but delivers a lot of performance enhancements and feature options.
+commands:
+   lockettepro:
+      permission: lockettepro.command
+      usage: |
+         /lock
+      aliases: [lock, lockette, lockit]
+permissions:
+   lockettepro.command:
+      description: Command permission for LockettePro
+      default: true
+   lockettepro.lock:
+      description: Basic lock permission
+      default: true
+   lockettepro.edit:
+      description: Edit sign permission
+      default: true
