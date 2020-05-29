@@ -56,7 +56,9 @@ public class Utils {
         }
         updateSign(newsign);
         Sign sign = (Sign)newsign.getState();
-        if (newsign.getType() == Material.DARK_OAK_WALL_SIGN) {
+        blockType = newsign.getType();
+        // TODO (1.16): Add CRIMSON and WARPED
+        if (blockType == Material.DARK_OAK_WALL_SIGN || blockType == Material.SPRUCE_WALL_SIGN) {
             sign.setColor(DyeColor.WHITE);
         }
         sign.setLine(0, line1);
