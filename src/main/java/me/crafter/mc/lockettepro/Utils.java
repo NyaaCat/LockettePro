@@ -288,6 +288,22 @@ public class Utils {
         }
     }
 
+    public static boolean isAxe(ItemStack itemStack) {
+        if (itemStack == null)
+            return false;
+        Material eventItemType = itemStack.getType();
+        return List.of(
+                Material.WOODEN_AXE,
+                Material.STONE_AXE,
+                Material.IRON_AXE,
+                Material.GOLDEN_AXE,
+                Material.DIAMOND_AXE,
+                Material.NETHERITE_AXE
+        ).contains(eventItemType);
+        // How about
+        // return eventItemType.name().endsWith("_AXE"); ?
+    }
+
     public static boolean isPlayerOnLine(Player player, String text) {
         if (Utils.isUsernameUuidLine(text)) {
             if (Config.isUuidEnabled()) {

@@ -17,13 +17,11 @@ import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerTakeLecternBookEvent;
 import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 public class BlockPlayerListener implements Listener {
 
@@ -230,8 +228,8 @@ public class BlockPlayerListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onAttemptChangeLockerSign(SignChangeEvent event){
         Block block = event.getBlock();
-        if(LocketteProAPI.isLockSign(block)||LocketteProAPI.isAdditionalSign(block)){
-            Sign sign = (Sign)block.getState();
+        if (LocketteProAPI.isLockSign(block) || LocketteProAPI.isAdditionalSign(block)) {
+            Sign sign = (Sign) block.getState();
             sign.setWaxed(true);
             sign.update();
             event.setCancelled(true);
@@ -242,8 +240,7 @@ public class BlockPlayerListener implements Listener {
     public void onAttemptBreakWaxedLockerSign(PlayerInteractEvent event){
         Action action = event.getAction();
         Block block = event.getClickedBlock();
-        boolean isAxe = Objects.equals(event.getItem(), new ItemStack(Material.WOODEN_AXE)) || Objects.equals(event.getItem(), new ItemStack(Material.STONE_AXE)) || Objects.equals(event.getItem(), new ItemStack(Material.IRON_AXE)) || Objects.equals(event.getItem(), new ItemStack(Material.GOLDEN_AXE)) || Objects.equals(event.getItem(), new ItemStack(Material.DIAMOND_AXE)) || Objects.equals(event.getItem(), new ItemStack(Material.NETHERITE_AXE));
-        if(action == Action.RIGHT_CLICK_BLOCK&&(LocketteProAPI.isLockSign(block)||LocketteProAPI.isAdditionalSign(block))&&isAxe){
+        if (action == Action.RIGHT_CLICK_BLOCK && (LocketteProAPI.isLockSign(block) || LocketteProAPI.isAdditionalSign(block)) && Utils.isAxe(event.getItem())) {
             event.setCancelled(true);
         }
     }
