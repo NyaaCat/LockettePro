@@ -139,6 +139,9 @@ public class BlockPlayerListener implements Listener {
                 if (!locked && !LocketteProAPI.isUpDownLockedDoor(block)) {
                     if (LocketteProAPI.isLockString(topline)) {
                         Utils.sendMessages(player, Config.getLang("locked-manual"));
+                        Sign sign = (Sign) event.getBlock().getState();
+                        sign.setWaxed(true);
+                        sign.update();
                         if (!player.hasPermission("lockettepro.lockothers")) { // Player with permission can lock with another name
                             event.setLine(1, player.getName());
                         }
