@@ -69,7 +69,7 @@ public class DependencyProtocolLib {
                     var z = packedXZ & 15;
                     var y = struct.getIntegers().read(1);
                     var block = chunk.getBlock(x, y, z);
-                    if (LocketteProAPI.isSign(block))
+                    if (!LocketteProAPI.isSign(block))
                         continue; //skip non-wall-signs but continue process other block entities.
                     StructureModifier<NbtBase<?>> NbtModifier = struct.getNbtModifier();
                     NbtCompound signNbt = (NbtCompound) NbtModifier.read(0);
