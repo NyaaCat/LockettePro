@@ -292,16 +292,7 @@ public class Utils {
         if (itemStack == null)
             return false;
         Material eventItemType = itemStack.getType();
-        return List.of(
-                Material.WOODEN_AXE,
-                Material.STONE_AXE,
-                Material.IRON_AXE,
-                Material.GOLDEN_AXE,
-                Material.DIAMOND_AXE,
-                Material.NETHERITE_AXE
-        ).contains(eventItemType);
-        // How about
-        // return eventItemType.name().endsWith("_AXE"); ?
+        return Tag.ITEMS_AXES.isTagged(eventItemType);
     }
 
     public static boolean isPlayerOnLine(Player player, String text) {

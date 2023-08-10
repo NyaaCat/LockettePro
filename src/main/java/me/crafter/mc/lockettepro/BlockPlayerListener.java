@@ -236,14 +236,16 @@ public class BlockPlayerListener implements Listener {
             sign.setWaxed(true);
             sign.update();
             event.setCancelled(true);
+            block.getWorld().spawnParticle(Particle.SMOKE_NORMAL,block.getLocation(),5);
         }
-        block.getWorld().spawnParticle(Particle.SMOKE_NORMAL,block.getLocation(),5);
     }
     @EventHandler(priority = EventPriority.HIGH,ignoreCancelled = true)
     public void onAttemptBreakWaxedLockerSign(PlayerInteractEvent event){
         Action action = event.getAction();
         Block block = event.getClickedBlock();
-        if (action == Action.RIGHT_CLICK_BLOCK && (LocketteProAPI.isLockSign(block) || LocketteProAPI.isAdditionalSign(block)) && Utils.isAxe(event.getItem())) {
+        if (action == Action.RIGHT_CLICK_BLOCK &&
+                (LocketteProAPI.isLockSign(block) || LocketteProAPI.isAdditionalSign(block))
+                && Utils.isAxe(event.getItem())) {
             event.setCancelled(true);
         }
     }
