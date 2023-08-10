@@ -3,7 +3,10 @@ package me.crafter.mc.lockettepro;
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.events.*;
-import com.comphenix.protocol.wrappers.WrappedChatComponent;
+import com.comphenix.protocol.reflect.StructureModifier;
+import com.comphenix.protocol.wrappers.nbt.NbtBase;
+import com.comphenix.protocol.wrappers.nbt.NbtCompound;
+import com.comphenix.protocol.wrappers.nbt.NbtList;
 import org.bukkit.Bukkit;
 import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
@@ -40,8 +43,9 @@ public class DependencyProtocolLib {
                 var blockPos = packet.getBlockPositionModifier().read(0);
                 var block = player.getWorld().getBlockAt(blockPos.getX(), blockPos.getY(), blockPos.getZ());
                 if (!(block.getState() instanceof Sign)) return;
-                var chatComponentArrays = packet.getChatComponentArrays();
-                chatComponentArrays.write(0, onSignSend(event.getPlayer(), chatComponentArrays.read(0)));
+                StructureModifier<NbtBase<?>> NbtModifier =  packet.getNbtModifier();
+                NbtCompound signNbt = (NbtCompound) NbtModifier.read(0);
+                NbtModifier.write(0,onSignSend(player,signNbt));
             }
         });
     }
@@ -62,34 +66,38 @@ public class DependencyProtocolLib {
                     var y = struct.getIntegers().read(1);
                     var block = chunk.getBlock((packedXZ >> 4) & 15, y, ((packedXZ) & 15));
                     if (!(block.getState() instanceof Sign)) return;
-                    var chatComponentArrays = struct.getChatComponentArrays();
-                    chatComponentArrays.write(0, onSignSend(event.getPlayer(), chatComponentArrays.read(0)));
+                    StructureModifier<NbtBase<?>> NbtModifier =  struct.getNbtModifier();
+                    NbtCompound signNbt = (NbtCompound) NbtModifier.read(0);
+                    NbtModifier.write(0,onSignSend(player,signNbt));
                 }
             }
         });
     }
 
-    public static WrappedChatComponent[] onSignSend(Player player, WrappedChatComponent[] chatComponent) {
-        if (chatComponent.length == 0) return chatComponent;
-
-        String raw_line1 = chatComponent[0].getJson();
+    public static NbtCompound onSignSend(Player player, NbtCompound signNbt) {
+        NbtList<String> msgs = signNbt.getCompound("front_text").getList("messages");
+        List<NbtBase<String>> msgList = msgs.getValue();
+        if (msgList.size() == 0) return signNbt;
+        String raw_line1 = msgList.get(0).getValue();
         if (LocketteProAPI.isLockStringOrAdditionalString(Utils.getSignLineFromUnknown(raw_line1))) {
             // Private line
-            String line1 = Utils.getSignLineFromUnknown(chatComponent[0].getJson());
+            String line1 = Utils.getSignLineFromUnknown(raw_line1);
             if (LocketteProAPI.isLineExpired(line1)) {
-                chatComponent[0] = WrappedChatComponent.fromText(Config.getLockExpireString());
+                msgList.get(0).setValue(formatText(Config.getLockExpireString()));
             } else {
-                chatComponent[0] = WrappedChatComponent.fromText(Utils.StripSharpSign(line1));
+                msgList.get(0).setValue(formatText(Utils.StripSharpSign(line1)));
             }
             // Other line
-            for (int i = 1; i < chatComponent.length; i++) {
-                String line = Utils.getSignLineFromUnknown(chatComponent[i].getJson());
+            for (int i = 1; i < msgList.size(); i++) {
+                String line = Utils.getSignLineFromUnknown(msgList.get(i).getValue());
                 if (Utils.isUsernameUuidLine(line)) {
-                    chatComponent[i] = WrappedChatComponent.fromText(Utils.getUsernameFromLine(line));
+                    msgList.get(i).setValue(formatText(Utils.getUsernameFromLine(line)));
                 }
             }
         }
-        return chatComponent;
+        return signNbt;
     }
-
+    private static String formatText(String string){
+        return "{\"text\":\""+string+"\"}";
+    }
 }
