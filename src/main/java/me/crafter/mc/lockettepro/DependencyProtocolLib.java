@@ -57,18 +57,23 @@ public class DependencyProtocolLib {
             public void onPacketSending(PacketEvent event) {
                 var player = event.getPlayer();
                 PacketContainer packet = event.getPacket();
-                List<InternalStructure> chunkData = packet.getStructures().read(0).getLists(InternalStructure.getConverter()).read(0);
+                // refer: https://wiki.vg/Protocol#Chunk_Data_and_Update_Light
+                List<InternalStructure> chunkData = packet.getStructures().read(0)
+                        .getLists(InternalStructure.getConverter()).read(0);
                 var chunkX = packet.getIntegers().read(0);
                 var chunkZ = packet.getIntegers().read(1);
                 var chunk = player.getWorld().getChunkAt(chunkX, chunkZ);
                 for (InternalStructure struct : chunkData) {
                     var packedXZ = struct.getIntegers().read(0);
+                    var x = (packedXZ >> 4) & 15;
+                    var z = packedXZ & 15;
                     var y = struct.getIntegers().read(1);
-                    var block = chunk.getBlock((packedXZ >> 4) & 15, y, ((packedXZ) & 15));
-                    if (!(block.getState() instanceof Sign)) return;
-                    StructureModifier<NbtBase<?>> NbtModifier =  struct.getNbtModifier();
+                    var block = chunk.getBlock(x, y, z);
+                    if (LocketteProAPI.isSign(block))
+                        continue; //skip non-wall-signs but continue process other block entities.
+                    StructureModifier<NbtBase<?>> NbtModifier = struct.getNbtModifier();
                     NbtCompound signNbt = (NbtCompound) NbtModifier.read(0);
-                    NbtModifier.write(0,onSignSend(player,signNbt));
+                    NbtModifier.write(0, onSignSend(player, signNbt));
                 }
             }
         });
