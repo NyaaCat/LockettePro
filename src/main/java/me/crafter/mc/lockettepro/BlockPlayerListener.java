@@ -103,7 +103,7 @@ public class BlockPlayerListener implements Listener {
     }
 
     // Manual protection
-    @EventHandler(priority = EventPriority.NORMAL)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onManualLock(SignChangeEvent event) {
         if (!Tag.WALL_SIGNS.isTagged(event.getBlock().getType())) return;
         String topline = event.getLine(0);
@@ -228,7 +228,7 @@ public class BlockPlayerListener implements Listener {
     }
 
     //protect sign from being changed
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onAttemptChangeLockerSign(SignChangeEvent event){
         Block block = event.getBlock();
         if (LocketteProAPI.isLockSign(block) || LocketteProAPI.isAdditionalSign(block)) {
