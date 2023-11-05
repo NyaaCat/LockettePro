@@ -168,7 +168,7 @@ public class Utils {
     public static void updateUuidByUsername(final Block block, final int line) {
         Sign sign = (Sign) block.getState();
         final String original = sign.getSide(Side.FRONT).getLine(line);
-        Bukkit.getScheduler().runTaskAsynchronously(LockettePro.getPlugin(), () -> {
+        CompatibleScheduler.runTaskAsynchronously(LockettePro.getPlugin(), () -> {
             String username = original;
             if (username.contains("#")) {
                 username = username.split("#")[0];
@@ -183,7 +183,7 @@ public class Utils {
             }
             if (uuid != null) {
                 final String towrite = username + "#" + uuid;
-                Bukkit.getScheduler().runTask(LockettePro.getPlugin(), () -> setSignLine(block, line, towrite));
+                CompatibleScheduler.runTask(LockettePro.getPlugin(), block.getLocation(), () -> setSignLine(block, line, towrite));
             }
         });
     }
