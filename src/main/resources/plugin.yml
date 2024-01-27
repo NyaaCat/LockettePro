@@ -5,6 +5,7 @@ softdepend: [Vault, WorldGuard, ProtocolLib, CoreProtect]
 loadbefore: [SignShop]
 version: ${version}
 api-version: 1.19
+folia-supported: true
 description: >
              LockettePro is a chest protection plugin for Bukkit. It is 100% compatible with original Lockette, but delivers a lot of performance enhancements and feature options.
 commands:
