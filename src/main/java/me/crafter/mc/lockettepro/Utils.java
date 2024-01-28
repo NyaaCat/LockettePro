@@ -16,6 +16,7 @@ import org.bukkit.block.data.Directional;
 import org.bukkit.block.sign.Side;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.metadata.MetadataValue;
@@ -76,12 +77,16 @@ public class Utils {
         sign.update();
     }
 
-    public static void removeASign(Player player) {
+    public static void removeASign(Player player, EquipmentSlot hand) {
         if (player.getGameMode() == GameMode.CREATIVE) return;
-        if (player.getInventory().getItemInMainHand().getAmount() == 1) {
-            player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+        ItemStack item = player.getInventory().getItem(hand);
+
+        if (item.getAmount() == 1) {
+            player.getInventory().setItem(hand, new ItemStack(Material.AIR));
         } else {
-            player.getInventory().getItemInMainHand().setAmount(player.getInventory().getItemInMainHand().getAmount() - 1);
+            ItemStack itemToSet = item.clone();
+            itemToSet.setAmount(itemToSet.getAmount() - 1);
+            player.getInventory().setItem(hand, itemToSet);
         }
     }
 

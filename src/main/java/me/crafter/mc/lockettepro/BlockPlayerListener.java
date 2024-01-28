@@ -20,6 +20,7 @@ import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerTakeLecternBookEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 
 import java.util.ArrayList;
@@ -35,8 +36,10 @@ public class BlockPlayerListener implements Listener {
         // Get player and action info
         Action action = event.getAction();
         Player player = event.getPlayer();
+        if (event.getItem() == null) return;
+        ItemStack itemInUse = event.getItem().clone();
         // Check action correctness
-        if (action == Action.RIGHT_CLICK_BLOCK && Tag.SIGNS.isTagged(player.getInventory().getItemInMainHand().getType())) {
+        if (action == Action.RIGHT_CLICK_BLOCK && Tag.SIGNS.isTagged(itemInUse.getType())) {
             if (player.getGameMode().equals(GameMode.SPECTATOR)) {
                 return;
             }
@@ -67,14 +70,12 @@ public class BlockPlayerListener implements Listener {
                     event.setCancelled(true);
                     // Check lock info info
                     if (!locked && !LocketteProAPI.isUpDownLockedDoor(block)) {
-                        // Get type
-                        Material signType = player.getInventory().getItemInMainHand().getType();
                         // Not locked, not a locked door nearby
-                        Utils.removeASign(player);
+                        // Put sign on
+                        Block newsign = Utils.putSignOn(block, blockface, Config.getDefaultPrivateString(), player.getName(), itemInUse.getType());
+                        Utils.removeASign(player, event.getHand());
                         // Send message
                         Utils.sendMessages(player, Config.getLang("locked-quick"));
-                        // Put sign on
-                        Block newsign = Utils.putSignOn(block, blockface, Config.getDefaultPrivateString(), player.getName(), signType);
                         Utils.resetCache(block);
                         // Cleanups - UUID
                         if (Config.isUuidEnabled()) {
@@ -88,14 +89,14 @@ public class BlockPlayerListener implements Listener {
                         Dependency.logPlacement(player, newsign);
                     } else if (!locked && LocketteProAPI.isOwnerUpDownLockedDoor(block, player)) {
                         // Not locked, (is locked door nearby), is owner of locked door nearby
-                        Utils.removeASign(player);
+                        Utils.putSignOn(block, blockface, Config.getDefaultAdditionalString(), "", itemInUse.getType());
+                        Utils.removeASign(player, event.getHand());
                         Utils.sendMessages(player, Config.getLang("additional-sign-added-quick"));
-                        Utils.putSignOn(block, blockface, Config.getDefaultAdditionalString(), "", player.getInventory().getItemInMainHand().getType());
                         Dependency.logPlacement(player, block.getRelative(blockface));
                     } else if (LocketteProAPI.isOwner(block, player)) {
                         // Locked, (not locked door nearby), is owner of locked block
-                        Utils.removeASign(player);
-                        Utils.putSignOn(block, blockface, Config.getDefaultAdditionalString(), "", player.getInventory().getItemInMainHand().getType());
+                        Utils.putSignOn(block, blockface, Config.getDefaultAdditionalString(), "", itemInUse.getType());
+                        Utils.removeASign(player, event.getHand());
                         Utils.sendMessages(player, Config.getLang("additional-sign-added-quick"));
                         Dependency.logPlacement(player, block.getRelative(blockface));
                     } else {
