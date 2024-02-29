@@ -5,8 +5,8 @@ plugins {
 }
 // Suppiled by Jenkins
 ext.majorVersion = 2
-ext.minorVersion = 13
-ext.minecraftVersion = "1.20.1"
+ext.minorVersion = 14
+ext.minecraftVersion = "1.20.4"
 
 ext.buildNumber = System.env.BUILD_NUMBER == null ? "x"                : "build" + "$System.env.BUILD_NUMBER"
 ext.mavenDirectory = System.env.MAVEN_DIR == null ? "$projectDir/repo" : "$System.env.MAVEN_DIR"
@@ -18,9 +18,10 @@ targetCompatibility = 17
 // differet version convension from Nyaa plugins
 group = "me.crafter.mc"
 archivesBaseName = "LockettePro"
-version = "$majorVersion.$minorVersion-mc$minecraftVersion-$buildNumber".toString()
+version = "$majorVersion.$minorVersion.$buildNumber".toString()
+
 runServer {
-    minecraftVersion("1.20.1")
+    minecraftVersion("1.20.4")
 }
 
 // extra compile warnings
@@ -42,7 +43,7 @@ repositories {
 
 dependencies {
     implementation 'org.jetbrains:annotations:23.0.0'
-    compileOnly "io.papermc.paper:paper-api:$minecraftVersion-R0.1-SNAPSHOT"
+    compileOnly "io.papermc.paper:paper-api:1.19.4-R0.1-SNAPSHOT"
     compileOnly ("com.github.MilkBowl:VaultAPI:1.7"){ transitive = false}
     compileOnly ('com.sk89q.worldguard:worldguard-bukkit:7.1.0-SNAPSHOT') { transitive = false }
     compileOnly (group: "com.comphenix.protocol", name: "ProtocolLib", version: "5.1.0"){ transitive = false}
