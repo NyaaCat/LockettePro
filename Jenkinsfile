@@ -6,7 +6,7 @@ pipeline {
                 jdk "jdk17"
             }
             steps {
-                sh './gradlew publish'
+                sh './gradlew build'
             }
         }
     }
