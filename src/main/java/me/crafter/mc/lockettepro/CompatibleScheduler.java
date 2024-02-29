@@ -10,9 +10,9 @@ import java.util.function.Supplier;
 public class CompatibleScheduler {
     private static final boolean isSpigot = ((Supplier<Boolean>) () -> {
         try {
-            Class.forName("org.bukkit.Server.Spigot");
+            Bukkit.getServer().spigot();
             return true;
-        } catch (ClassNotFoundException e) {
+        } catch (Exception e) {
             return false;
         }
     }).get();
