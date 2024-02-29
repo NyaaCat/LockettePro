@@ -7,6 +7,9 @@ import com.google.common.cache.LoadingCache;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.json.JSONComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -318,20 +321,31 @@ public class Utils {
     }
 
     public static String getSignLineFromUnknown(String json) {
-        JsonObject line = getJsonObjectOrNull(json);
-        if (line == null) return json;
-        StringBuilder result = new StringBuilder();
-        if (line.has("text")) {
-            result.append(line.get("text").getAsString());
-        }
-        if (line.has("extra")) {
-            try {
-                result.append(line.get("extra").getAsJsonArray().get(0).getAsJsonObject().get("text").getAsString());
-            } catch (Exception ignored) {
-            }
-        }
+        if(!json.contains("{")){
+            return trimNbtRawString(json);
+        }else{
+            JsonObject line = getJsonObjectOrNull(json);
+            if (line == null) return json;
 
-        return result.toString();
+            StringBuilder result = new StringBuilder();
+            if (line.has("text")) {
+                result.append(line.get("text").getAsString());
+            }
+            if (line.has("extra")) {
+                try {
+                    result.append(line.get("extra").getAsJsonArray().get(0).getAsJsonObject().get("text").getAsString());
+                } catch (Exception ignored) {
+                }
+            }
+
+            return result.toString();
+        }
+    }
+
+
+    // trim string from "text" to text
+    public static String trimNbtRawString(String rawString) {
+        return rawString.substring(1, rawString.length() - 1);
     }
 
     @Nullable

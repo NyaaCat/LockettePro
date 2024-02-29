@@ -43,9 +43,9 @@ public class DependencyProtocolLib {
                 var blockPos = packet.getBlockPositionModifier().read(0);
                 var block = player.getWorld().getBlockAt(blockPos.getX(), blockPos.getY(), blockPos.getZ());
                 if (!(block.getState() instanceof Sign)) return;
-                StructureModifier<NbtBase<?>> NbtModifier =  packet.getNbtModifier();
+                StructureModifier<NbtBase<?>> NbtModifier = packet.getNbtModifier();
                 NbtCompound signNbt = (NbtCompound) NbtModifier.read(0);
-                NbtModifier.write(0,onSignSend(player,signNbt));
+                NbtModifier.write(0, onSignSend(player, signNbt));
             }
         });
     }
@@ -69,8 +69,8 @@ public class DependencyProtocolLib {
                     var z = packedXZ & 15;
                     var y = struct.getIntegers().read(1);
                     var block = chunk.getBlock(x, y, z);
-                    if (!LocketteProAPI.isSign(block))
-                        continue; //skip non-wall-signs but continue process other block entities.
+                    if (!LocketteProAPI.isLockSign(block))
+                        continue; //skip non-wall-signs and non-lock signs but continue process other block entities.
                     StructureModifier<NbtBase<?>> NbtModifier = struct.getNbtModifier();
                     NbtCompound signNbt = (NbtCompound) NbtModifier.read(0);
                     NbtModifier.write(0, onSignSend(player, signNbt));
@@ -82,7 +82,7 @@ public class DependencyProtocolLib {
     public static NbtCompound onSignSend(Player player, NbtCompound signNbt) {
         NbtList<String> msgs = signNbt.getCompound("front_text").getList("messages");
         List<NbtBase<String>> msgList = msgs.getValue();
-        if (msgList.size() == 0) return signNbt;
+        if (msgList.isEmpty()) return signNbt;
         String raw_line1 = msgList.get(0).getValue();
         if (LocketteProAPI.isLockStringOrAdditionalString(Utils.getSignLineFromUnknown(raw_line1))) {
             // Private line
@@ -102,7 +102,7 @@ public class DependencyProtocolLib {
         }
         return signNbt;
     }
-    private static String formatText(String string){
-        return "{\"text\":\""+string+"\"}";
+    private static String formatText(String string) {
+        return "{\"text\":\"" + string + "\"}";
     }
 }
