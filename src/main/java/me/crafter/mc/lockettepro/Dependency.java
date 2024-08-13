@@ -34,7 +34,8 @@ public class Dependency {
             permission = rsp.getProvider();
         }
 
-        if (Config.coreprotect && Bukkit.getPluginManager().getPlugin("CoreProtect") != null && CoreProtect.getInstance().getAPI().APIVersion() >= 6) {
+        var coreprotect = Bukkit.getPluginManager().getPlugin("CoreProtect");
+        if (Config.coreprotect && coreprotect != null && coreprotect.isEnabled() && CoreProtect.getInstance().getAPI().APIVersion() >= 6) {
             coreProtectAPI = CoreProtect.getInstance().getAPI();
             if (!coreProtectAPI.isEnabled()) {
                 coreProtectAPI = null;
