@@ -3,11 +3,11 @@ plugins {
 }
 
 group = "me.crafter.mc"
-version = "2.14"
+version = "2.15"
 
 repositories {
     mavenCentral()
-    maven("https://repo.papermc.io/repository/maven-public/")
+    maven("https://repo.papermc.io/repository/maven-public/") //papermc
     maven("https://jitpack.io") //vault
     maven("https://maven.enginehub.org/repo/") //world guard
     maven("https://repo.dmulloy2.net/repository/public/" ) //protocol lib

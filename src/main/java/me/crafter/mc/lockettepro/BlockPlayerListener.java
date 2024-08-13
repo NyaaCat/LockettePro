@@ -242,7 +242,7 @@ public class BlockPlayerListener implements Listener {
             sign.setWaxed(true);
             sign.update();
             event.setCancelled(true);
-            block.getWorld().spawnParticle(Particle.SMOKE_NORMAL, block.getLocation(), 5);
+            block.getWorld().spawnParticle(Particle.SMOKE, block.getLocation(), 5);
         }
     }
 
