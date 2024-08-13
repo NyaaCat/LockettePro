@@ -1,0 +1,31 @@
+# ref:
+#  Writing Workflows:
+#    https://docs.github.com/en/actions/writing-workflows
+#  Setup Java JDK:
+#    https://github.com/marketplace/actions/setup-java-jdk
+#  And the github action env is clean by default so the project need to be pulled and checkout by job
+#    https://github.com/marketplace/actions/checkout
+#  otherwise there is nothing in the workspace folder (can also run git pull but this one make thing easy)
+#  @v4 seems like the latest version matches v4.x.x for a job
+#
+name: AutoBuilder
+run-name: 'Auto build on ${{github.ref_type}} ${{github.ref_name}} #${{github.run_number}}'
+on: [push]
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: setup jdk 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'oracle'
+          java-version: '21'
+      - name: checkout repo
+        uses: actions/checkout@v4
+      - name: build project with maven
+        run: mvn --batch-mode package
+      - name: upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{github.event.repository.name}}-autobuild-${{github.run_number}}-git-${{github.sha}}.zip
+          path: ./build/libs/*.jar

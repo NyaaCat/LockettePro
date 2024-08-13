@@ -1,5 +1,8 @@
+import java.net.URI
+
 plugins {
     id("java")
+    id("maven-publish")
 }
 
 group = "me.crafter.mc"
@@ -24,4 +27,25 @@ dependencies {
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(21))
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            from(components["java"])
+            groupId = project.group.toString()
+            artifactId = "lockettepro"
+            version = project.version.toString()
+        }
+    }
+    repositories {
+        maven {
+            name = "github-package"
+            url = URI(System.getenv("GITHUB_MAVEN_URL"))
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
 }
