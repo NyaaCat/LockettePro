@@ -3,7 +3,7 @@
 <!-- For Alerts: https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts -->
 > [!CAUTION]\
 > ***Versions for Minecraft 1.21 are not fully tested yet.***  
-> Please create an issus if you find anything wrong. Thank you.  
+> Please create an issue if you find anything wrong. Thank you.  
 
 The Builds afterward will be migrated to [GitHub actions](https://github.com/NyaaCat/LockettePro/actions/workflows/autobuild.yml) due to Nyaa CI server closed.
 
