@@ -1,11 +1,11 @@
-# LockettePro [![Build Status](https://ci.nyaacat.com/job/LockettePro/job/1.17/badge/icon?style=flat-square)](https://ci.nyaacat.com/job/LockettePro/job/1.17/)
+# LockettePro [![AutoBuilder](https://github.com/NyaaCat/LockettePro/actions/workflows/autobuild.yml/badge.svg)](https://github.com/NyaaCat/LockettePro/actions/workflows/autobuild.yml)
 
-***WARNING: Versions for Minecraft 1.15.x are not fully tested yet.***
-Please create an issus if you find anything wrong. Thank you.
-For Minecraft 1.14.4, please download [build \#9](https://ci.nyaacat.com/job/LockettePro/9/).
+<!-- For Alerts: https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts -->
+> [!CAUTION]\
+> ***Versions for Minecraft 1.21 are not fully tested yet.***  
+> Please create an issus if you find anything wrong. Thank you.  
 
-All versions can be found at [Nyaa CI server](https://ci.nyaacat.com/job/LockettePro/) and
-[Github Release Page](https://github.com/NyaaCat/LockettePro/releases).
+The Builds afterward will be migrated to [GitHub actions](https://github.com/NyaaCat/LockettePro/actions/workflows/autobuild.yml) due to Nyaa CI server closed.
 
 ### LockettePro - A much better Lockette plugin for Bukkit
 
@@ -27,5 +27,6 @@ MCBBS release page: http://www.mcbbs.net/thread-567962-1-1.html
 MC 1.6~1.7 Port: https://github.com/connection-lost/LockettePro/releases/tag/v1.9.4
 
 ### Version history
+- 2.9.15 : Minecraft 1.21, downloadable from [github actions](https://github.com/NyaaCat/LockettePro/actions/workflows/autobuild.yml)
 - 2.9.x-1.15.1: Minecraft 1.15.1, since build 10
 - 2.9.x-1.14.4: Minecraft 1.14.4, until build 9
