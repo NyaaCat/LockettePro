@@ -1,11 +1,12 @@
-# LockettePro [![AutoBuilder](https://github.com/NyaaCat/LockettePro/actions/workflows/autobuild.yml/badge.svg)](https://github.com/NyaaCat/LockettePro/actions/workflows/autobuild.yml)
+# LockettePro [![Build Status](https://ci.nyaacat.com/job/LockettePro/job/main/badge/icon?style=flat-square)](https://ci.nyaacat.com/job/LockettePro/job/main/)
 
 <!-- For Alerts: https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts -->
 > [!CAUTION]\
 > ***Versions for Minecraft 1.21 are not fully tested yet.***  
 > Please create an issue if you find anything wrong. Thank you.  
 
-The Builds afterward will be migrated to [GitHub actions](https://github.com/NyaaCat/LockettePro/actions/workflows/autobuild.yml) due to Nyaa CI server closed.
+All versions can be found at [Nyaa CI server](https://ci.nyaacat.com/job/LockettePro/) 
+For the newest build on main branch, click [here](https://ci.nyaacat.com/job/LockettePro/job/main/lastSuccessfulBuild/)
 
 ### LockettePro - A much better Lockette plugin for Bukkit
 
