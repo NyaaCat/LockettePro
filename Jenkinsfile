@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
     stages {
@@ -7,7 +6,7 @@ pipeline {
                 jdk "jdk21"
             }
             steps {
-                sh './gradlew build'
+                sh './gradlew publishMavenJavaPublicationToNyaaCatCILocalRepository'
             }
         }
     }
