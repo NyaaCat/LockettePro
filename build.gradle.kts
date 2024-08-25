@@ -56,12 +56,25 @@ publishing {
     }
 }
 
-// Custom tasks for publishing to specific repositories
-tasks.register("publishToGithubPackage") {
-    dependsOn("publishMavenJavaPublicationToGithubPackageRepository")
-    // auto generated task: publish<PublicationName>PublicationTo<RepositoryName>Repository
-}
+tasks {
+    compileJava {
+        options.compilerArgs.add("-Xlint:deprecation")
+        options.encoding = "UTF-8"
+    }
 
-tasks.register("publishToNyaaCatCILocal") {
-    dependsOn("publishMavenJavaPublicationToNyaaCatCILocalRepository")
+    processResources {
+        filesMatching("**/plugin.yml") {
+            expand("version" to project.version)
+        }
+    }
+
+    // Custom tasks for publishing to specific repositories
+    register("publishToGithubPackage") {
+        dependsOn("publishMavenJavaPublicationToGithubPackageRepository")
+        // auto generated task: publish<PublicationName>PublicationTo<RepositoryName>Repository
+    }
+
+    register("publishToNyaaCatCILocal") {
+        dependsOn("publishMavenJavaPublicationToNyaaCatCILocalRepository")
+    }
 }
