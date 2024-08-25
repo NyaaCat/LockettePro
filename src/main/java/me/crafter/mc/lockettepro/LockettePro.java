@@ -21,17 +21,6 @@ public class LockettePro extends JavaPlugin {
     private static boolean needcheckhand = true;
 
     public void onEnable() {
-        // Version
-        try {
-            Material.BARREL.isItem();
-        } catch (Exception e) {
-            setEnabled(false);
-            getLogger().warning("This plugin is not compatible with your server version!");
-        }
-        getLogger().warning("===================================");
-        if (!isEnabled()) {
-            return;
-        }
         plugin = this;
         // Read config
         new Config(this);
