@@ -27,6 +27,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BlockPlayerListener implements Listener {
+    Particle SMOKE_PARTICLE = Particle.valueOf(
+            Utils.isMinecraftVersionHigherThan(Utils.getCurrentMinecraftVersionString(), "1.20.4") ?
+                    "SMOKE" : "SMOKE_NORMAL"
+    ); // SMOKE_NORMAL changed to SMOKE above 1.20.4
 
     // Quick protect for chests
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
@@ -242,7 +246,7 @@ public class BlockPlayerListener implements Listener {
             sign.setWaxed(true);
             sign.update();
             event.setCancelled(true);
-            block.getWorld().spawnParticle(Particle.SMOKE, block.getLocation(), 5);
+            block.getWorld().spawnParticle(SMOKE_PARTICLE, block.getLocation(), 5);
         }
     }
 

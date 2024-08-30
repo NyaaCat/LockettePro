@@ -7,9 +7,6 @@ import com.google.common.cache.LoadingCache;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.json.JSONComponentSerializer;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -29,10 +26,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class Utils {
@@ -340,6 +334,34 @@ public class Utils {
 
             return result.toString();
         }
+    }
+
+    public static String getCurrentMinecraftVersionString() {
+        return Bukkit.getVersion().split("-")[0];
+    }
+
+    public static List<Integer> getMinecraftInList(String versionString) {
+        var list = new ArrayList<Integer>();
+        Arrays.stream(versionString.split("\\.")).forEach(s -> {
+            try {
+                list.add(Integer.parseInt(s));
+            } catch (NumberFormatException ignored) {
+            }
+        });
+        return list;
+    }
+
+    public static boolean isMinecraftVersionHigherThan(String version,String compareTo) {
+        List<Integer> versionInList = getMinecraftInList(version);
+        List<Integer> compareToInList = getMinecraftInList(compareTo);
+        for (int i = 0; i < Math.min(versionInList.size(), compareToInList.size()); i++) {
+            if (versionInList.get(i) > compareToInList.get(i)) {
+                return true;
+            } else if (versionInList.get(i) < compareToInList.get(i)) {
+                return false;
+            }
+        }
+        return versionInList.size() > compareToInList.size();
     }
 
 
