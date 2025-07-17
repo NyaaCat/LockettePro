@@ -65,13 +65,17 @@ public class Dependency {
     }
 
     public static boolean isScoreboardTeamOf(String line, Player player) {
-        ScoreboardManager scoreboardManager = Bukkit.getScoreboardManager();
-        if (scoreboardManager == null) return false;
-        Team team = scoreboardManager.getMainScoreboard().getEntryTeam(player.getName());
-        if (team != null) {
-            return line.equals("[" + team.getName() + "]");
-        }
-        return false;
+		try {
+            ScoreboardManager scoreboardManager = Bukkit.getScoreboardManager();
+            if (scoreboardManager == null) return false;
+            Team team = scoreboardManager.getMainScoreboard().getEntryTeam(player.getName());
+            if (team != null) {
+                return line.equals("[" + team.getName() + "]");
+            }
+            return false;
+		} catch (Exception e) {
+			return false;
+		}
     }
 
     public static void logPlacement(Player player, Block block) {
