@@ -18,11 +18,19 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
-    compileOnly("com.github.MilkBowl:VaultAPI:1.7")
-    compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.1.0-SNAPSHOT")
-    compileOnly("com.comphenix.protocol:ProtocolLib:5.1.0")
-    compileOnly("net.coreprotect:coreprotect:22.4")
+    compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
+    compileOnly("com.github.MilkBowl:VaultAPI:1.7") {
+        isTransitive = false
+    }
+    compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.1.0-SNAPSHOT") {
+        isTransitive = false
+    }
+    compileOnly("com.comphenix.protocol:ProtocolLib:5.3.0") {
+        isTransitive = false
+    }
+    compileOnly("net.coreprotect:coreprotect:22.4") {
+        isTransitive = false
+    }
 }
 
 java {
@@ -39,15 +47,6 @@ publishing {
         }
     }
     repositories {
-        maven {
-            name = "GithubPackage"
-            url =
-                URI(System.getenv("GITHUB_MAVEN_URL") ?: "https://github.com/")
-            credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_TOKEN")
-            }
-        }
         maven {
             name = "NyaaCatCILocal"
             //local maven repository
@@ -68,11 +67,6 @@ tasks {
         }
     }
 
-    // Custom tasks for publishing to specific repositories
-    register("publishToGithubPackage") {
-        dependsOn("publishMavenJavaPublicationToGithubPackageRepository")
-        // auto generated task: publish<PublicationName>PublicationTo<RepositoryName>Repository
-    }
 
     register("publishToNyaaCatCILocal") {
         dependsOn("publishMavenJavaPublicationToNyaaCatCILocalRepository")

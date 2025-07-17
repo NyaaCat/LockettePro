@@ -65,7 +65,7 @@ public class Dependency {
     }
 
     public static boolean isScoreboardTeamOf(String line, Player player) {
-		try {
+        try {
             ScoreboardManager scoreboardManager = Bukkit.getScoreboardManager();
             if (scoreboardManager == null) return false;
             Team team = scoreboardManager.getMainScoreboard().getEntryTeam(player.getName());
@@ -73,9 +73,9 @@ public class Dependency {
                 return line.equals("[" + team.getName() + "]");
             }
             return false;
-		} catch (Exception e) {
-			return false;
-		}
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public static void logPlacement(Player player, Block block) {
