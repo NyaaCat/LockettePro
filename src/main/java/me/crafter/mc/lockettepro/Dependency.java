@@ -65,17 +65,18 @@ public class Dependency {
     }
 
     public static boolean isScoreboardTeamOf(String line, Player player) {
-        try {
-            ScoreboardManager scoreboardManager = Bukkit.getScoreboardManager();
-            if (scoreboardManager == null) return false;
-            Team team = scoreboardManager.getMainScoreboard().getEntryTeam(player.getName());
-            if (team != null) {
+        ScoreboardManager scoreboardManager = Bukkit.getScoreboardManager();
+        Team team = scoreboardManager.getMainScoreboard().getEntityTeam(player);
+        if (team == null) {
+            return false;
+        } else
+            try {
                 return line.equals("[" + team.getName() + "]");
+            } catch (IllegalStateException e) {
+                // in case of the team has been unregistered
+                // https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/scoreboard/Team.html#getName()
+                return false;
             }
-            return false;
-        } catch (Exception e) {
-            return false;
-        }
     }
 
     public static void logPlacement(Player player, Block block) {
