@@ -315,9 +315,11 @@ public class Utils {
     }
 
     public static String getSignLineFromUnknown(String json) {
-        if(!json.contains("{")){
+        if (json.isEmpty()) {
+            return "";
+        } else if (!json.contains("{")) {
             return trimNbtRawString(json);
-        }else{
+        } else {
             JsonObject line = getJsonObjectOrNull(json);
             if (line == null) return json;
 
@@ -351,7 +353,7 @@ public class Utils {
         return list;
     }
 
-    public static boolean isMinecraftVersionHigherThan(String version,String compareTo) {
+    public static boolean isMinecraftVersionHigherThan(String version, String compareTo) {
         List<Integer> versionInList = getMinecraftInList(version);
         List<Integer> compareToInList = getMinecraftInList(compareTo);
         for (int i = 0; i < Math.min(versionInList.size(), compareToInList.size()); i++) {
