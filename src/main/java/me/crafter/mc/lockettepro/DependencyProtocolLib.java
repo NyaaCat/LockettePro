@@ -7,11 +7,13 @@ import com.comphenix.protocol.reflect.StructureModifier;
 import com.comphenix.protocol.wrappers.nbt.NbtBase;
 import com.comphenix.protocol.wrappers.nbt.NbtCompound;
 import com.comphenix.protocol.wrappers.nbt.NbtList;
+import com.comphenix.protocol.wrappers.nbt.NbtType;
 import org.bukkit.Bukkit;
 import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.Collection;
 import java.util.List;
 
 public class DependencyProtocolLib {
@@ -80,27 +82,90 @@ public class DependencyProtocolLib {
     }
 
     public static NbtCompound onSignSend(Player player, NbtCompound signNbt) {
-        NbtList<String> msgs = signNbt.getCompound("front_text").getList("messages");
-        List<NbtBase<String>> msgList = msgs.getValue();
-        if (msgList.isEmpty()) return signNbt;
-        String raw_line1 = msgList.get(0).getValue();
-        if (LocketteProAPI.isLockStringOrAdditionalString(Utils.getSignLineFromUnknown(raw_line1))) {
+        NbtCompound frontText = signNbt.getCompound("front_text");
+        if (frontText == null) {
+            return signNbt;
+        }
+        NbtList<?> msgs = frontText.getList("messages");
+        if (msgs == null) {
+            return signNbt;
+        }
+        @SuppressWarnings("unchecked")
+        List<NbtBase<?>> msgList = (List<NbtBase<?>>) (List<?>) msgs.getValue();
+        if (msgList.isEmpty()) {
+            return signNbt;
+        }
+        String rawLine1 = readMessageValue(msgList.get(0));
+        if (LocketteProAPI.isLockStringOrAdditionalString(Utils.getSignLineFromUnknown(rawLine1))) {
             // Private line
-            String line1 = Utils.getSignLineFromUnknown(raw_line1);
+            String line1 = Utils.getSignLineFromUnknown(rawLine1);
             if (LocketteProAPI.isLineExpired(line1)) {
-                msgList.get(0).setValue(formatText(Config.getLockExpireString()));
+                writeMessageValue(msgList.get(0), Config.getLockExpireString());
             } else {
-                msgList.get(0).setValue(formatText(Utils.StripSharpSign(line1)));
+                writeMessageValue(msgList.get(0), Utils.StripSharpSign(line1));
             }
             // Other line
             for (int i = 1; i < msgList.size(); i++) {
-                String line = Utils.getSignLineFromUnknown(msgList.get(i).getValue());
+                String line = Utils.getSignLineFromUnknown(readMessageValue(msgList.get(i)));
                 if (Utils.isUsernameUuidLine(line)) {
-                    msgList.get(i).setValue(formatText(Utils.getUsernameFromLine(line)));
+                    writeMessageValue(msgList.get(i), Utils.getUsernameFromLine(line));
                 }
             }
         }
         return signNbt;
+    }
+
+    private static String readMessageValue(NbtBase<?> messageBase) {
+        if (messageBase == null) {
+            return "";
+        }
+        NbtType type = messageBase.getType();
+        if (type == NbtType.TAG_STRING) {
+            Object value = messageBase.getValue();
+            return value == null ? "" : value.toString();
+        }
+        if (type == NbtType.TAG_COMPOUND) {
+            return readMessageFromCompound((NbtCompound) messageBase);
+        }
+        Object value = messageBase.getValue();
+        return value == null ? "" : value.toString();
+    }
+
+    private static String readMessageFromCompound(NbtCompound compound) {
+        if (compound == null) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        String text = compound.getStringOrDefault("text");
+        if (text != null && !text.isEmpty()) {
+            builder.append(text);
+        }
+        NbtList<?> extraList = compound.getList("extra");
+        if (extraList != null) {
+            @SuppressWarnings("unchecked")
+            List<NbtBase<?>> extras = (List<NbtBase<?>>) (List<?>) extraList.getValue();
+            for (NbtBase<?> extra : extras) {
+                builder.append(readMessageValue(extra));
+            }
+        }
+        return builder.toString();
+    }
+
+    private static void writeMessageValue(NbtBase<?> messageBase, String text) {
+        if (messageBase == null) {
+            return;
+        }
+        if (messageBase.getType() == NbtType.TAG_STRING) {
+            @SuppressWarnings("unchecked")
+            NbtBase<String> stringBase = (NbtBase<String>) messageBase;
+            stringBase.setValue(formatText(text));
+            return;
+        }
+        if (messageBase.getType() == NbtType.TAG_COMPOUND) {
+            NbtCompound compound = (NbtCompound) messageBase;
+            compound.put("text", text);
+            compound.remove("extra");
+        }
     }
     private static String formatText(String string) {
         return "{\"text\":\"" + string + "\"}";
