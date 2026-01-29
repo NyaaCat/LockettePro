@@ -25,7 +25,7 @@ dependencies {
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.1.0-SNAPSHOT") {
         isTransitive = false
     }
-    compileOnly("com.comphenix.protocol:ProtocolLib:5.3.0") {
+    compileOnly("com.comphenix.protocol:ProtocolLib:5.4.0-SNAPSHOT") {
         isTransitive = false
     }
     compileOnly("net.coreprotect:coreprotect:22.4") {
