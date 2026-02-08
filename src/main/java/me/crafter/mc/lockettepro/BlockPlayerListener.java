@@ -81,6 +81,7 @@ public class BlockPlayerListener implements Listener {
                         // Send message
                         Utils.sendMessages(player, Config.getLang("locked-quick"));
                         Utils.resetCache(block);
+                        Utils.refreshLockedContainerPdcTagLater(block);
                         // Cleanups - UUID
                         if (Config.isUuidEnabled()) {
                             Utils.updateLineByPlayer(newsign, 1, player);
@@ -156,6 +157,7 @@ public class BlockPlayerListener implements Listener {
                         }
                         sign.update();
                         Utils.resetCache(block);
+                        Utils.refreshLockedContainerPdcTagLater(block);
                     } else {
                         Utils.sendMessages(player, Config.getLang("not-locked-yet-manual"));
                         event.setLine(0, Config.getLang("sign-error"));
@@ -235,6 +237,13 @@ public class BlockPlayerListener implements Listener {
                 Utils.playAccessDenyEffect(player, block);
             }
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onLocketteSignBroken(BlockBreakEvent event) {
+        Block block = event.getBlock();
+        if (!LocketteProAPI.isLockSignOrAdditionalSign(block)) return;
+        Utils.refreshLockedContainerPdcTagLater(LocketteProAPI.getAttachedBlock(block));
     }
 
     //protect sign from being changed

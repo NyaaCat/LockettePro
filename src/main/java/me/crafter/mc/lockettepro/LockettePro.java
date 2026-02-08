@@ -41,6 +41,7 @@ public class LockettePro extends JavaPlugin {
                 plugin.getLogger().info("UUID & expiracy support requires ProtocolLib, or else signs will be ugly!");
             }
         }
+        CompatibleScheduler.runTask(this, null, Utils::refreshLockedContainerPdcTagsInLoadedChunks);
     }
 
     public void onDisable() {

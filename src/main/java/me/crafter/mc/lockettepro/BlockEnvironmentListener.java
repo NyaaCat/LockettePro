@@ -19,6 +19,7 @@ import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntityInteractEvent;
+import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.StructureGrowEvent;
 
 public class BlockEnvironmentListener implements Listener {
@@ -105,6 +106,11 @@ public class BlockEnvironmentListener implements Listener {
                 event.setCancelled(true);
             }
         }// ignore other reason (boat break lily pad, arrow ignite tnt, etc)
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onChunkLoadSyncPdc(ChunkLoadEvent event) {
+        Utils.refreshLockedContainerPdcTagsInChunk(event.getChunk());
     }
 
 }

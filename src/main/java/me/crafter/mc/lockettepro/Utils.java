@@ -8,8 +8,12 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import org.bukkit.*;
+import org.bukkit.Chunk;
+import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.BlockState;
+import org.bukkit.block.Container;
 import org.bukkit.block.Sign;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
@@ -20,6 +24,8 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.metadata.MetadataValue;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.BufferedReader;
@@ -32,6 +38,8 @@ import java.util.concurrent.TimeUnit;
 public class Utils {
 
     public static final String usernamepattern = "^[a-zA-Z0-9_]*$";
+    public static final String LOCKED_CONTAINER_PDC_KEY_STRING = "lockettepro:locked_container";
+    private static final String LOCKED_CONTAINER_PDC_KEY_PATH = "locked_container";
 
     private static final LoadingCache<UUID, Block> selectedsign = CacheBuilder.newBuilder()
             .expireAfterAccess(30, TimeUnit.SECONDS)
@@ -157,6 +165,70 @@ public class Utils {
             if (relative.getType() == block.getType()) {
                 relative.removeMetadata("expires", LockettePro.getPlugin());
                 relative.removeMetadata("locked", LockettePro.getPlugin());
+            }
+        }
+    }
+
+    private static NamespacedKey getLockedContainerPdcKey() {
+        return new NamespacedKey(LockettePro.getPlugin(), LOCKED_CONTAINER_PDC_KEY_PATH);
+    }
+
+    private static void setLockedContainerPdc(Block block, boolean locked) {
+        if (block == null) return;
+        if (!block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4)) return;
+        BlockState blockState = block.getState();
+        if (!(blockState instanceof Container containerState)) return;
+
+        NamespacedKey key = getLockedContainerPdcKey();
+        PersistentDataContainer pdc = containerState.getPersistentDataContainer();
+        if (locked) {
+            if (pdc.has(key, PersistentDataType.BYTE)) return;
+            pdc.set(key, PersistentDataType.BYTE, (byte) 1);
+            containerState.update(true, false);
+        } else {
+            if (!pdc.has(key, PersistentDataType.BYTE)) return;
+            pdc.remove(key);
+            containerState.update(true, false);
+        }
+    }
+
+    public static void refreshLockedContainerPdcTag(Block block) {
+        if (block == null) return;
+
+        boolean locked = LocketteProAPI.isLocked(block);
+        setLockedContainerPdc(block, locked);
+
+        if (LocketteProAPI.isChest(block)) {
+            BlockFace relativeChestFace = LocketteProAPI.getRelativeChestFace(block);
+            if (relativeChestFace != null) {
+                setLockedContainerPdc(block.getRelative(relativeChestFace), locked);
+            }
+        }
+    }
+
+    public static void refreshLockedContainerPdcTagLater(Block block) {
+        if (block == null) return;
+        CompatibleScheduler.runTaskLater(
+                LockettePro.getPlugin(),
+                block.getLocation(),
+                () -> refreshLockedContainerPdcTag(block),
+                1L
+        );
+    }
+
+    public static void refreshLockedContainerPdcTagsInChunk(Chunk chunk) {
+        for (BlockState blockState : chunk.getTileEntities()) {
+            if (!(blockState instanceof Sign)) continue;
+            Block signBlock = blockState.getBlock();
+            if (!LocketteProAPI.isLockSign(signBlock)) continue;
+            refreshLockedContainerPdcTag(LocketteProAPI.getAttachedBlock(signBlock));
+        }
+    }
+
+    public static void refreshLockedContainerPdcTagsInLoadedChunks() {
+        for (World world : Bukkit.getWorlds()) {
+            for (Chunk chunk : world.getLoadedChunks()) {
+                refreshLockedContainerPdcTagsInChunk(chunk);
             }
         }
     }
