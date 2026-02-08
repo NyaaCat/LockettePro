@@ -9,11 +9,11 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import org.bukkit.*;
 import org.bukkit.Chunk;
-import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Container;
+import org.bukkit.block.DoubleChest;
 import org.bukkit.block.Sign;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
@@ -21,15 +21,18 @@ import org.bukkit.block.sign.Side;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.metadata.MetadataValue;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.Nullable;
+import org.bukkit.plugin.Plugin;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.*;
@@ -40,6 +43,7 @@ public class Utils {
     public static final String usernamepattern = "^[a-zA-Z0-9_]*$";
     public static final String LOCKED_CONTAINER_PDC_KEY_STRING = "lockettepro:locked_container";
     private static final String LOCKED_CONTAINER_PDC_KEY_PATH = "locked_container";
+    private static final LockedContainerPdcAccess LOCKED_CONTAINER_PDC_ACCESS = LockedContainerPdcAccess.create();
 
     private static final LoadingCache<UUID, Block> selectedsign = CacheBuilder.newBuilder()
             .expireAfterAccess(30, TimeUnit.SECONDS)
@@ -169,25 +173,40 @@ public class Utils {
         }
     }
 
-    private static NamespacedKey getLockedContainerPdcKey() {
-        return new NamespacedKey(LockettePro.getPlugin(), LOCKED_CONTAINER_PDC_KEY_PATH);
+    private static void setLockedContainerPdcOnHolder(InventoryHolder holder, boolean locked) {
+        if (holder instanceof BlockState blockState) {
+            setLockedContainerPdc(blockState.getBlock(), locked);
+        }
+    }
+
+    private static void syncConnectedContainerPdc(Block block, boolean locked) {
+        BlockState blockState = block.getState();
+        if (!(blockState instanceof Container containerState)) return;
+        InventoryHolder holder = containerState.getInventory().getHolder();
+        if (!(holder instanceof DoubleChest doubleChest)) return;
+        setLockedContainerPdcOnHolder(doubleChest.getLeftSide(), locked);
+        setLockedContainerPdcOnHolder(doubleChest.getRightSide(), locked);
     }
 
     private static void setLockedContainerPdc(Block block, boolean locked) {
         if (block == null) return;
+        if (!LOCKED_CONTAINER_PDC_ACCESS.isSupported()) return;
         if (!block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4)) return;
         BlockState blockState = block.getState();
         if (!(blockState instanceof Container containerState)) return;
 
-        NamespacedKey key = getLockedContainerPdcKey();
-        PersistentDataContainer pdc = containerState.getPersistentDataContainer();
+        Object key = LOCKED_CONTAINER_PDC_ACCESS.createKey();
+        Object pdc = LOCKED_CONTAINER_PDC_ACCESS.getPersistentDataContainer(containerState);
+        if (key == null || pdc == null) return;
+
+        boolean hasTag = LOCKED_CONTAINER_PDC_ACCESS.has(pdc, key);
         if (locked) {
-            if (pdc.has(key, PersistentDataType.BYTE)) return;
-            pdc.set(key, PersistentDataType.BYTE, (byte) 1);
+            if (hasTag) return;
+            LOCKED_CONTAINER_PDC_ACCESS.setByte(pdc, key, (byte) 1);
             containerState.update(true, false);
         } else {
-            if (!pdc.has(key, PersistentDataType.BYTE)) return;
-            pdc.remove(key);
+            if (!hasTag) return;
+            LOCKED_CONTAINER_PDC_ACCESS.remove(pdc, key);
             containerState.update(true, false);
         }
     }
@@ -197,13 +216,7 @@ public class Utils {
 
         boolean locked = LocketteProAPI.isLocked(block);
         setLockedContainerPdc(block, locked);
-
-        if (LocketteProAPI.isChest(block)) {
-            BlockFace relativeChestFace = LocketteProAPI.getRelativeChestFace(block);
-            if (relativeChestFace != null) {
-                setLockedContainerPdc(block.getRelative(relativeChestFace), locked);
-            }
-        }
+        syncConnectedContainerPdc(block, locked);
     }
 
     public static void refreshLockedContainerPdcTagLater(Block block) {
@@ -229,6 +242,110 @@ public class Utils {
         for (World world : Bukkit.getWorlds()) {
             for (Chunk chunk : world.getLoadedChunks()) {
                 refreshLockedContainerPdcTagsInChunk(chunk);
+            }
+        }
+    }
+
+    private static final class LockedContainerPdcAccess {
+        private final Constructor<?> namespacedKeyConstructor;
+        private final Object byteType;
+        private final Method tileStateGetPdcMethod;
+        private final Method pdcHasMethod;
+        private final Method pdcSetMethod;
+        private final Method pdcRemoveMethod;
+
+        private LockedContainerPdcAccess(
+                Constructor<?> namespacedKeyConstructor,
+                Object byteType,
+                Method tileStateGetPdcMethod,
+                Method pdcHasMethod,
+                Method pdcSetMethod,
+                Method pdcRemoveMethod
+        ) {
+            this.namespacedKeyConstructor = namespacedKeyConstructor;
+            this.byteType = byteType;
+            this.tileStateGetPdcMethod = tileStateGetPdcMethod;
+            this.pdcHasMethod = pdcHasMethod;
+            this.pdcSetMethod = pdcSetMethod;
+            this.pdcRemoveMethod = pdcRemoveMethod;
+        }
+
+        static LockedContainerPdcAccess create() {
+            try {
+                Class<?> namespacedKeyClass = Class.forName("org.bukkit.NamespacedKey");
+                Class<?> tileStateClass = Class.forName("org.bukkit.block.TileState");
+                Class<?> persistentDataContainerClass = Class.forName("org.bukkit.persistence.PersistentDataContainer");
+                Class<?> persistentDataTypeClass = Class.forName("org.bukkit.persistence.PersistentDataType");
+
+                Constructor<?> namespacedKeyConstructor = namespacedKeyClass.getConstructor(Plugin.class, String.class);
+                Method tileStateGetPdcMethod = tileStateClass.getMethod("getPersistentDataContainer");
+                Method pdcHasMethod = persistentDataContainerClass.getMethod("has", namespacedKeyClass, persistentDataTypeClass);
+                Method pdcSetMethod = persistentDataContainerClass.getMethod("set", namespacedKeyClass, persistentDataTypeClass, Object.class);
+                Method pdcRemoveMethod = persistentDataContainerClass.getMethod("remove", namespacedKeyClass);
+                Field byteTypeField = persistentDataTypeClass.getField("BYTE");
+
+                return new LockedContainerPdcAccess(
+                        namespacedKeyConstructor,
+                        byteTypeField.get(null),
+                        tileStateGetPdcMethod,
+                        pdcHasMethod,
+                        pdcSetMethod,
+                        pdcRemoveMethod
+                );
+            } catch (ReflectiveOperationException ignored) {
+                return new LockedContainerPdcAccess(null, null, null, null, null, null);
+            }
+        }
+
+        boolean isSupported() {
+            return this.namespacedKeyConstructor != null
+                    && this.byteType != null
+                    && this.tileStateGetPdcMethod != null
+                    && this.pdcHasMethod != null
+                    && this.pdcSetMethod != null
+                    && this.pdcRemoveMethod != null;
+        }
+
+        Object createKey() {
+            if (!isSupported()) return null;
+            try {
+                return this.namespacedKeyConstructor.newInstance(LockettePro.getPlugin(), LOCKED_CONTAINER_PDC_KEY_PATH);
+            } catch (ReflectiveOperationException ignored) {
+                return null;
+            }
+        }
+
+        Object getPersistentDataContainer(Container containerState) {
+            if (!isSupported()) return null;
+            try {
+                return this.tileStateGetPdcMethod.invoke(containerState);
+            } catch (ReflectiveOperationException ignored) {
+                return null;
+            }
+        }
+
+        boolean has(Object persistentDataContainer, Object key) {
+            if (!isSupported()) return false;
+            try {
+                return (boolean) this.pdcHasMethod.invoke(persistentDataContainer, key, this.byteType);
+            } catch (ReflectiveOperationException ignored) {
+                return false;
+            }
+        }
+
+        void setByte(Object persistentDataContainer, Object key, byte value) {
+            if (!isSupported()) return;
+            try {
+                this.pdcSetMethod.invoke(persistentDataContainer, key, this.byteType, value);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+
+        void remove(Object persistentDataContainer, Object key) {
+            if (!isSupported()) return;
+            try {
+                this.pdcRemoveMethod.invoke(persistentDataContainer, key);
+            } catch (ReflectiveOperationException ignored) {
             }
         }
     }
