@@ -418,30 +418,52 @@ public final class ContainerPdcLockManager {
         for (Block containerBlock : getLinkedContainerBlocks(block)) {
             BlockState blockState = containerBlock.getState();
             if (!(blockState instanceof Container container)) continue;
-            PersistentDataContainer pdc = container.getPersistentDataContainer();
-
-            boolean hasLockedKey = pdc.has(lockedKey(), PersistentDataType.BYTE);
-            if (hasLockedKey) {
+            LockData partial = readLockDataFromPdc(container.getPersistentDataContainer());
+            if (partial.hasPdcData()) {
                 hasPdc = true;
-                Byte lockedByte = pdc.get(lockedKey(), PersistentDataType.BYTE);
-                if (lockedByte != null && lockedByte != 0) {
-                    locked = true;
-                }
             }
-
-            for (NamespacedKey key : pdc.getKeys()) {
-                if (!isPermissionKey(key)) continue;
-                hasPdc = true;
-                String subject = decodeSubject(key.getKey().substring(PERMISSION_KEY_PATH_PREFIX.length()));
-                if (subject == null || subject.isBlank()) continue;
-
-                String token = pdc.get(key, PersistentDataType.STRING);
-                PermissionAccess access = PermissionAccess.parseToken(token);
-                if (access == null || access == PermissionAccess.NONE) continue;
+            if (partial.isLocked()) {
+                locked = true;
+            }
+            for (Map.Entry<String, PermissionAccess> entry : partial.permissions().entrySet()) {
+                String subject = entry.getKey();
+                PermissionAccess access = entry.getValue();
                 PermissionAccess old = permissions.get(subject);
                 if (old == null || access.power > old.power) {
                     permissions.put(subject, access);
                 }
+            }
+        }
+
+        return new LockData(hasPdc, locked, permissions);
+    }
+
+    private static LockData readLockDataFromPdc(PersistentDataContainer pdc) {
+        boolean hasPdc = false;
+        boolean locked = false;
+        LinkedHashMap<String, PermissionAccess> permissions = new LinkedHashMap<>();
+
+        boolean hasLockedKey = pdc.has(lockedKey(), PersistentDataType.BYTE);
+        if (hasLockedKey) {
+            hasPdc = true;
+            Byte lockedByte = pdc.get(lockedKey(), PersistentDataType.BYTE);
+            if (lockedByte != null && lockedByte != 0) {
+                locked = true;
+            }
+        }
+
+        for (NamespacedKey key : pdc.getKeys()) {
+            if (!isPermissionKey(key)) continue;
+            hasPdc = true;
+            String subject = decodeSubject(key.getKey().substring(PERMISSION_KEY_PATH_PREFIX.length()));
+            if (subject == null || subject.isBlank()) continue;
+
+            String token = pdc.get(key, PersistentDataType.STRING);
+            PermissionAccess access = PermissionAccess.parseToken(token);
+            if (access == null || access == PermissionAccess.NONE) continue;
+            PermissionAccess old = permissions.get(subject);
+            if (old == null || access.power > old.power) {
+                permissions.put(subject, access);
             }
         }
 
@@ -545,6 +567,68 @@ public final class ContainerPdcLockManager {
 
         Utils.resetCache(block);
         invalidateRuntimeCache(block);
+        return true;
+    }
+
+    /**
+     * Lightweight path for chunk-scan maintenance. Operates on the provided tile state
+     * and only writes when the locked_container tag value actually changes.
+     */
+    public static boolean refreshLockedContainerTag(BlockState blockState) {
+        return refreshLockedContainerTag(blockState, null);
+    }
+
+    /**
+     * Lightweight path for chunk-scan maintenance with optional linked state (double chest pair).
+     */
+    public static boolean refreshLockedContainerTag(BlockState blockState, BlockState linkedState) {
+        if (!(blockState instanceof Container container)) return false;
+        PersistentDataContainer pdc = container.getPersistentDataContainer();
+        LockData data = readLockDataFromPdc(pdc);
+        LockData linkedData = null;
+        Container linkedContainer = null;
+        PersistentDataContainer linkedPdc = null;
+
+        if (linkedState instanceof Container containerState) {
+            linkedContainer = containerState;
+            linkedPdc = linkedContainer.getPersistentDataContainer();
+            linkedData = readLockDataFromPdc(linkedPdc);
+        }
+
+        if (linkedData != null && linkedData.hasPdcData()) {
+            boolean mergedLocked = data.isLocked() || linkedData.isLocked();
+            LinkedHashMap<String, PermissionAccess> mergedPermissions = new LinkedHashMap<>(data.permissions());
+            for (Map.Entry<String, PermissionAccess> entry : linkedData.permissions().entrySet()) {
+                PermissionAccess existing = mergedPermissions.get(entry.getKey());
+                if (existing == null || entry.getValue().power > existing.power) {
+                    mergedPermissions.put(entry.getKey(), entry.getValue());
+                }
+            }
+            data = new LockData(true, mergedLocked, mergedPermissions);
+        }
+
+        if (!data.hasPdcData()) return false;
+
+        boolean shouldHaveTag = data.isLocked() && shouldSetLockedContainerTag(data.permissions);
+        NamespacedKey key = lockedContainerKey();
+        applyLockedContainerTag(container, pdc, key, shouldHaveTag);
+        if (linkedContainer != null && linkedPdc != null) {
+            applyLockedContainerTag(linkedContainer, linkedPdc, key, shouldHaveTag);
+        }
+        return true;
+    }
+
+    private static boolean applyLockedContainerTag(Container container, PersistentDataContainer pdc, NamespacedKey key, boolean shouldHaveTag) {
+        boolean hasTag = pdc.has(key, PersistentDataType.BYTE);
+        if (hasTag == shouldHaveTag) {
+            return false;
+        }
+        if (shouldHaveTag) {
+            pdc.set(key, PersistentDataType.BYTE, (byte) 1);
+        } else {
+            pdc.remove(key);
+        }
+        container.update(true, false);
         return true;
     }
 

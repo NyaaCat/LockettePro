@@ -17,6 +17,7 @@ import org.bukkit.block.DoubleChest;
 import org.bukkit.block.Sign;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
+import org.bukkit.block.data.type.Chest;
 import org.bukkit.block.sign.Side;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -257,8 +258,10 @@ public class Utils {
 
     public static void refreshLockedContainerPdcTagsInChunk(Chunk chunk) {
         if (chunk == null) return;
-        for (BlockState blockState : chunk.getTileEntities()) {
-            refreshLockedContainerPdcTagByTileState(blockState);
+        BlockState[] tileEntities = chunk.getTileEntities();
+        Map<Long, BlockState> tileLookup = buildTileStateLookup(tileEntities);
+        for (BlockState blockState : tileEntities) {
+            refreshLockedContainerPdcTagByTileState(blockState, tileLookup);
         }
     }
 
@@ -319,15 +322,57 @@ public class Utils {
         }
     }
 
-    private static void refreshLockedContainerPdcTagByTileState(BlockState blockState) {
+    private static void refreshLockedContainerPdcTagByTileState(BlockState blockState, @Nullable Map<Long, BlockState> tileLookup) {
         if (blockState == null) return;
         if (blockState instanceof Container) {
-            ContainerPdcLockManager.refreshLockedContainerTag(blockState.getBlock());
+            BlockState linkedState = findLinkedContainerTileState(blockState, tileLookup);
+            ContainerPdcLockManager.refreshLockedContainerTag(blockState, linkedState);
         }
         if (!(blockState instanceof Sign)) return;
         Block signBlock = blockState.getBlock();
         if (!LocketteProAPI.isLockSign(signBlock)) return;
         refreshLockedContainerPdcTag(LocketteProAPI.getAttachedBlock(signBlock));
+    }
+
+    private static Map<Long, BlockState> buildTileStateLookup(BlockState[] tileEntities) {
+        HashMap<Long, BlockState> map = new HashMap<>(Math.max(16, tileEntities.length * 2));
+        for (BlockState tileEntity : tileEntities) {
+            if (tileEntity == null) continue;
+            Block block = tileEntity.getBlock();
+            map.put(blockPositionKey(block.getX(), block.getY(), block.getZ()), tileEntity);
+        }
+        return map;
+    }
+
+    @Nullable
+    private static BlockState findLinkedContainerTileState(BlockState blockState, @Nullable Map<Long, BlockState> tileLookup) {
+        if (!(blockState instanceof Container)) return null;
+        if (!(blockState.getBlockData() instanceof Chest chestData)) return null;
+        if (chestData.getType() == Chest.Type.SINGLE) return null;
+
+        Block block = blockState.getBlock();
+        Chest.Type expected = chestData.getType() == Chest.Type.LEFT ? Chest.Type.RIGHT : Chest.Type.LEFT;
+        BlockFace facing = chestData.getFacing();
+
+        for (BlockFace face : new BlockFace[]{BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST}) {
+            Block neighbor = block.getRelative(face);
+            if (neighbor.getType() != block.getType()) continue;
+
+            if (tileLookup == null) continue;
+            BlockState candidate = tileLookup.get(blockPositionKey(neighbor.getX(), neighbor.getY(), neighbor.getZ()));
+            if (!(candidate instanceof Container)) continue;
+            if (!(candidate.getBlockData() instanceof Chest candidateData)) continue;
+            if (candidateData.getType() != expected) continue;
+            if (candidateData.getFacing() != facing) continue;
+            return candidate;
+        }
+        return null;
+    }
+
+    private static long blockPositionKey(int x, int y, int z) {
+        return ((long) (x & 0x3FFFFFF) << 38)
+                | ((long) (z & 0x3FFFFFF) << 12)
+                | (y & 0xFFFL);
     }
 
     private static String toChunkQueueKey(UUID worldId, int chunkX, int chunkZ) {
@@ -340,6 +385,7 @@ public class Utils {
         private final int chunkZ;
         private final String key;
         private BlockState[] tileEntities;
+        private Map<Long, BlockState> tileStatesByPosition;
         private int cursor;
         private boolean done;
 
@@ -356,7 +402,7 @@ public class Utils {
 
             int processed = 0;
             while (cursor < tileEntities.length && processed < budget) {
-                refreshLockedContainerPdcTagByTileState(tileEntities[cursor]);
+                refreshLockedContainerPdcTagByTileState(tileEntities[cursor], tileStatesByPosition);
                 cursor++;
                 processed++;
             }
@@ -377,6 +423,7 @@ public class Utils {
             }
             Chunk chunk = world.getChunkAt(chunkX, chunkZ);
             tileEntities = chunk.getTileEntities();
+            tileStatesByPosition = buildTileStateLookup(tileEntities);
             cursor = 0;
             if (tileEntities.length == 0) {
                 done = true;
