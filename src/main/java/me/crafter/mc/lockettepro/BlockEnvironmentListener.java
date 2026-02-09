@@ -149,7 +149,7 @@ public class BlockEnvironmentListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onChunkLoadSyncPdc(ChunkLoadEvent event) {
-        Utils.refreshLockedContainerPdcTagsInChunk(event.getChunk());
+        Utils.queueRefreshLockedContainerPdcTagsInChunk(event.getChunk());
     }
 
 }

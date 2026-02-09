@@ -47,6 +47,7 @@ public class Utils {
     private static final String LOCKED_CONTAINER_PDC_KEY_DEFAULT_PATH = "locked_container";
     private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("(?i)&\\#([0-9a-f]{6})");
     private static final LockedContainerPdcAccess LOCKED_CONTAINER_PDC_ACCESS = LockedContainerPdcAccess.create();
+    private static final int PDC_TAG_REFRESH_TILE_ENTITY_BUDGET_PER_TICK = 128;
 
     private static final LoadingCache<UUID, Block> selectedsign = CacheBuilder.newBuilder()
             .expireAfterAccess(30, TimeUnit.SECONDS)
@@ -56,6 +57,9 @@ public class Utils {
                 }
             });
     private static final Set<UUID> notified = new HashSet<>();
+    private static final Deque<ChunkTagRefreshTask> queuedPdcTagRefreshTasks = new ArrayDeque<>();
+    private static final Set<String> queuedPdcTagRefreshKeys = new HashSet<>();
+    private static CompatibleTask queuedPdcTagRefreshWorker;
 
     // Helper functions
     public static Block putSignOn(Block block, BlockFace blockface, String line1, String line2, Material material) {
@@ -252,22 +256,136 @@ public class Utils {
     }
 
     public static void refreshLockedContainerPdcTagsInChunk(Chunk chunk) {
+        if (chunk == null) return;
         for (BlockState blockState : chunk.getTileEntities()) {
-            if (blockState instanceof Container) {
-                ContainerPdcLockManager.refreshLockedContainerTag(blockState.getBlock());
-            }
-            if (!(blockState instanceof Sign)) continue;
-            Block signBlock = blockState.getBlock();
-            if (!LocketteProAPI.isLockSign(signBlock)) continue;
-            refreshLockedContainerPdcTag(LocketteProAPI.getAttachedBlock(signBlock));
+            refreshLockedContainerPdcTagByTileState(blockState);
         }
     }
 
     public static void refreshLockedContainerPdcTagsInLoadedChunks() {
+        queueRefreshLockedContainerPdcTagsInLoadedChunks();
+    }
+
+    public static void queueRefreshLockedContainerPdcTagsInChunk(Chunk chunk) {
+        if (chunk == null) return;
+        startQueuedPdcTagRefreshWorker();
+        String key = toChunkQueueKey(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ());
+        if (!queuedPdcTagRefreshKeys.add(key)) return;
+        queuedPdcTagRefreshTasks.addLast(new ChunkTagRefreshTask(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ(), key));
+    }
+
+    public static void queueRefreshLockedContainerPdcTagsInLoadedChunks() {
+        startQueuedPdcTagRefreshWorker();
         for (World world : Bukkit.getWorlds()) {
             for (Chunk chunk : world.getLoadedChunks()) {
-                refreshLockedContainerPdcTagsInChunk(chunk);
+                queueRefreshLockedContainerPdcTagsInChunk(chunk);
             }
+        }
+    }
+
+    public static void stopQueuedPdcTagRefreshWorker() {
+        if (queuedPdcTagRefreshWorker != null) {
+            queuedPdcTagRefreshWorker.cancel();
+            queuedPdcTagRefreshWorker = null;
+        }
+        queuedPdcTagRefreshTasks.clear();
+        queuedPdcTagRefreshKeys.clear();
+    }
+
+    private static void startQueuedPdcTagRefreshWorker() {
+        if (queuedPdcTagRefreshWorker != null) return;
+        queuedPdcTagRefreshWorker = CompatibleScheduler.runTaskTimer(
+                LockettePro.getPlugin(),
+                null,
+                Utils::drainQueuedPdcTagRefreshTasks,
+                1L,
+                1L
+        );
+    }
+
+    private static void drainQueuedPdcTagRefreshTasks() {
+        int budget = PDC_TAG_REFRESH_TILE_ENTITY_BUDGET_PER_TICK;
+        while (budget > 0 && !queuedPdcTagRefreshTasks.isEmpty()) {
+            ChunkTagRefreshTask task = queuedPdcTagRefreshTasks.peekFirst();
+            int processed = task.process(budget);
+            if (task.isDone()) {
+                queuedPdcTagRefreshTasks.pollFirst();
+                queuedPdcTagRefreshKeys.remove(task.key);
+            }
+            if (processed <= 0) {
+                processed = 1;
+            }
+            budget -= processed;
+        }
+    }
+
+    private static void refreshLockedContainerPdcTagByTileState(BlockState blockState) {
+        if (blockState == null) return;
+        if (blockState instanceof Container) {
+            ContainerPdcLockManager.refreshLockedContainerTag(blockState.getBlock());
+        }
+        if (!(blockState instanceof Sign)) return;
+        Block signBlock = blockState.getBlock();
+        if (!LocketteProAPI.isLockSign(signBlock)) return;
+        refreshLockedContainerPdcTag(LocketteProAPI.getAttachedBlock(signBlock));
+    }
+
+    private static String toChunkQueueKey(UUID worldId, int chunkX, int chunkZ) {
+        return worldId + ":" + chunkX + ":" + chunkZ;
+    }
+
+    private static final class ChunkTagRefreshTask {
+        private final UUID worldId;
+        private final int chunkX;
+        private final int chunkZ;
+        private final String key;
+        private BlockState[] tileEntities;
+        private int cursor;
+        private boolean done;
+
+        private ChunkTagRefreshTask(UUID worldId, int chunkX, int chunkZ, String key) {
+            this.worldId = worldId;
+            this.chunkX = chunkX;
+            this.chunkZ = chunkZ;
+            this.key = key;
+        }
+
+        private int process(int budget) {
+            if (done) return 0;
+            if (!ensureTileEntitiesLoaded()) return 0;
+
+            int processed = 0;
+            while (cursor < tileEntities.length && processed < budget) {
+                refreshLockedContainerPdcTagByTileState(tileEntities[cursor]);
+                cursor++;
+                processed++;
+            }
+            if (cursor >= tileEntities.length) {
+                done = true;
+            }
+            return processed;
+        }
+
+        private boolean ensureTileEntitiesLoaded() {
+            if (tileEntities != null) {
+                return true;
+            }
+            World world = Bukkit.getWorld(worldId);
+            if (world == null || !world.isChunkLoaded(chunkX, chunkZ)) {
+                done = true;
+                return false;
+            }
+            Chunk chunk = world.getChunkAt(chunkX, chunkZ);
+            tileEntities = chunk.getTileEntities();
+            cursor = 0;
+            if (tileEntities.length == 0) {
+                done = true;
+            }
+            return true;
+        }
+
+        private boolean isDone() {
+            return done;
         }
     }
 

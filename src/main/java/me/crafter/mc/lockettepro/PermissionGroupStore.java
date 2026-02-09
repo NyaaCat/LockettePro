@@ -48,6 +48,7 @@ public final class PermissionGroupStore {
     private static CompatibleTask autosaveTask;
     private static boolean saveWorkerRunning;
     private static boolean saveWorkerQueued;
+    private static volatile boolean shutdownInProgress;
     private static long mutationVersion;
     private static long persistedVersion;
     private static long storageVersion;
@@ -111,15 +112,20 @@ public final class PermissionGroupStore {
 
     public static void initialize(Plugin pluginInstance) {
         plugin = pluginInstance;
+        shutdownInProgress = false;
         storagePath = resolveStoragePath();
         loadFromDisk();
         startAutoSaveTask();
     }
 
     public static void shutdown() {
+        shutdownInProgress = true;
         if (autosaveTask != null) {
             autosaveTask.cancel();
             autosaveTask = null;
+        }
+        synchronized (SAVE_STATE_LOCK) {
+            saveWorkerQueued = false;
         }
         saveNow();
     }
@@ -238,7 +244,7 @@ public final class PermissionGroupStore {
     }
 
     private static void saveAsync() {
-        if (plugin == null) return;
+        if (plugin == null || shutdownInProgress) return;
         synchronized (SAVE_STATE_LOCK) {
             if (saveWorkerRunning) {
                 saveWorkerQueued = true;
@@ -255,7 +261,7 @@ public final class PermissionGroupStore {
             while (true) {
                 saveNow();
                 synchronized (SAVE_STATE_LOCK) {
-                    if (!saveWorkerQueued) {
+                    if (shutdownInProgress || !saveWorkerQueued) {
                         saveWorkerRunning = false;
                         return;
                     }
@@ -268,7 +274,7 @@ public final class PermissionGroupStore {
             }
             synchronized (SAVE_STATE_LOCK) {
                 saveWorkerRunning = false;
-                if (saveWorkerQueued && plugin != null) {
+                if (!shutdownInProgress && saveWorkerQueued && plugin != null) {
                     saveWorkerQueued = false;
                     saveWorkerRunning = true;
                     CompatibleScheduler.runTaskAsynchronously(plugin, PermissionGroupStore::runSaveWorker);
@@ -277,7 +283,7 @@ public final class PermissionGroupStore {
         }
     }
 
-    public static void saveNow() {
+    private static void saveNow() {
         if (plugin == null || storagePath == null) return;
 
         long targetVersion;
@@ -506,6 +512,7 @@ public final class PermissionGroupStore {
 
     private static void markMutated() {
         mutationVersion++;
+        saveAsync();
     }
 
     public static boolean isGroupReference(String text) {
