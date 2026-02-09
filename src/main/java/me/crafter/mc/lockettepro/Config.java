@@ -10,6 +10,9 @@ import org.bukkit.plugin.Plugin;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class Config {
@@ -278,6 +281,35 @@ public class Config {
             if (!langfile.exists()) {
                 plugin.saveResource(filename, false);
             }
+            updateMissingLanguageKeys(filename);
+        }
+    }
+
+    private static void updateMissingLanguageKeys(String filename) {
+        InputStream stream = plugin.getResource(filename);
+        if (stream == null) {
+            return;
+        }
+
+        File file = new File(plugin.getDataFolder(), filename);
+        try (InputStream input = stream; InputStreamReader reader = new InputStreamReader(input, StandardCharsets.UTF_8)) {
+            YamlConfiguration bundled = YamlConfiguration.loadConfiguration(reader);
+            YamlConfiguration existing = YamlConfiguration.loadConfiguration(file);
+
+            boolean changed = false;
+            for (String key : bundled.getKeys(true)) {
+                if (bundled.isConfigurationSection(key)) continue;
+                if (!existing.contains(key)) {
+                    existing.set(key, bundled.get(key));
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                existing.save(file);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to update missing language keys for " + filename + ": " + e.getMessage());
         }
     }
 
