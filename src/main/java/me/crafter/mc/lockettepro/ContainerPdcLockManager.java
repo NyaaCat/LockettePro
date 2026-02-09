@@ -47,8 +47,10 @@ public final class ContainerPdcLockManager {
     private static final String CLONE_NAME_KEY_STRING = "lockettepro:perm_clone_name";
     private static final String CLONE_NAME_DEFAULT_PATH = "perm_clone_name";
     private static final String CLONE_PERMISSION_KEY_PATH_PREFIX = "clone_perm.";
+    private static final String SUBJECT_HEX_ENCODING_PREFIX = "h_";
 
     private static final String ENTITY_HOPPER = "#hopper";
+    private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
     private static volatile Cache<String, LockData> runtimeLockDataCache = createRuntimeLockDataCache();
     private static volatile int runtimeCacheConfigSignature = Integer.MIN_VALUE;
 
@@ -826,16 +828,67 @@ public final class ContainerPdcLockManager {
     }
 
     private static String encodeSubject(String value) {
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(value.getBytes(StandardCharsets.UTF_8));
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        StringBuilder builder = new StringBuilder(SUBJECT_HEX_ENCODING_PREFIX.length() + bytes.length * 2);
+        builder.append(SUBJECT_HEX_ENCODING_PREFIX);
+        for (byte b : bytes) {
+            int v = b & 0xFF;
+            builder.append(HEX_DIGITS[v >>> 4]);
+            builder.append(HEX_DIGITS[v & 0x0F]);
+        }
+        return builder.toString();
     }
 
     private static String decodeSubject(String encoded) {
+        if (encoded == null || encoded.isBlank()) {
+            return null;
+        }
+
+        if (encoded.startsWith(SUBJECT_HEX_ENCODING_PREFIX)) {
+            return decodeHexSubject(encoded.substring(SUBJECT_HEX_ENCODING_PREFIX.length()));
+        }
+
+        // Backward compatibility for previous base64-url encoding.
+        String legacyDecoded = decodeLegacyBase64Subject(encoded);
+        if (legacyDecoded != null) {
+            return legacyDecoded;
+        }
+
+        // Safety fallback for potential prefix-less hex payloads.
+        return decodeHexSubject(encoded);
+    }
+
+    private static String decodeLegacyBase64Subject(String encoded) {
         try {
             byte[] bytes = Base64.getUrlDecoder().decode(encoded);
             return new String(bytes, StandardCharsets.UTF_8);
         } catch (IllegalArgumentException ignored) {
             return null;
         }
+    }
+
+    private static String decodeHexSubject(String hex) {
+        if (hex == null || hex.isEmpty() || (hex.length() & 1) == 1) {
+            return null;
+        }
+
+        byte[] bytes = new byte[hex.length() / 2];
+        for (int i = 0; i < bytes.length; i++) {
+            int high = hexValue(hex.charAt(i * 2));
+            int low = hexValue(hex.charAt(i * 2 + 1));
+            if (high < 0 || low < 0) {
+                return null;
+            }
+            bytes[i] = (byte) ((high << 4) | low);
+        }
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private static int hexValue(char c) {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
     }
 
     private static boolean isUuid(String text) {
