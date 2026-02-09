@@ -17,6 +17,11 @@ lock-expire: false
 lock-expire-days: 999.9
 lock-default-create-time-unix: -1
 lock-expire-string: '&3[Expired]'
+permission-clone-item-material: FEATHER
+permission-clone-item-name: '&6[LockettePro] &ePermission Clone'
+permission-clone-item-lore:
+- '&7Use this item on a container to'
+- '&7apply copied lock permissions.'
 
 private-signs:
 - '[Private]'

@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "me.crafter.mc"
-version = "2.15"
+version = "2.16"
 
 repositories {
     mavenCentral()

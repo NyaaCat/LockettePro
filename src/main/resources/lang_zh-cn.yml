@@ -1,5 +1,5 @@
 # Chinese (simplified) translation by connection_lost
-command-usage: "&6[LockettePro] &bLockettePro 插件说明\n&c1. 为箱子添加或删除用户，首先右键选中一个牌子， 然后输入/lock 行号 玩家名 即可。\n&c2. 管理员重载插件配置，使用 /lock reload\nLockettePro by connection_lost"
+command-usage: "&6[LockettePro] &bLockettePro 插件说明\n&c1. 木牌锁编辑：先右键牌子，再用 /lock <行号> <内容>。\n&c2. PDC 锁：/lock on, /lock info, /lock rename <新名>, /lock permission <节点>, /lock clone。\n&c3. 重载配置：/lock reload\nLockettePro by connection_lost"
 you-can-quick-lock-it: '&6[LockettePro] 手持牌子右键箱子即可上锁。'
 you-can-manual-lock-it: '&6[LockettePro] 贴上一个牌子并写上[Private]即可上锁。'
 config-reloaded: '&6[LockettePro] &a配置已重新加载。'
@@ -30,3 +30,20 @@ cannot-break-this-additional-sign: '&6[LockettePro] &c你不可以拆掉别人�
 block-is-locked: '&6[LockettePro] &c这个方块已上锁。'
 cannot-interfere-with-others: '&6[LockettePro] &c你不能在已上锁的方块附近放这个。'
 sign-error: '&4[ERROR]'
+pdc-target-container-needed: '&6[LockettePro] &c请先对准一个容器。'
+pdc-lock-enabled: '&6[LockettePro] &a已启用容器 PDC 锁。'
+pdc-lock-already-enabled: '&6[LockettePro] &e该容器已经是 PDC 锁。'
+pdc-lock-failed: '&6[LockettePro] &c容器锁更新失败。'
+pdc-no-owner-permission: '&6[LockettePro] &c你不是该容器所有者。'
+pdc-not-locked: '&6[LockettePro] &c该容器没有 PDC 锁。'
+pdc-info-header: '&6[LockettePro] &a容器 PDC 锁信息：'
+pdc-rename-usage: '&6[LockettePro] &c用法: /lock rename <新名字>'
+pdc-rename-updated: '&6[LockettePro] &a容器名称已更新。'
+pdc-rename-failed: '&6[LockettePro] &c容器改名失败。'
+pdc-permission-usage: '&6[LockettePro] &c用法: /lock permission <xx|rw|ro|-->:<主体>'
+pdc-permission-invalid: '&6[LockettePro] &c权限节点格式错误。'
+pdc-permission-updated: '&6[LockettePro] &a容器权限已更新。'
+pdc-clone-given: '&6[LockettePro] &a权限克隆物品已发放到背包。'
+pdc-clone-applied: '&6[LockettePro] &a权限已复制到该容器。'
+pdc-clone-failed: '&6[LockettePro] &c权限复制失败。'
+pdc-owner-required: '&6[LockettePro] &c容器保持上锁时，必须至少保留一个所有者(xx)。'

@@ -37,12 +37,15 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Utils {
 
     public static final String usernamepattern = "^[a-zA-Z0-9_]*$";
     public static final String LOCKED_CONTAINER_PDC_KEY_STRING = "lockettepro:locked_container";
     private static final String LOCKED_CONTAINER_PDC_KEY_DEFAULT_PATH = "locked_container";
+    private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("(?i)&\\#([0-9a-f]{6})");
     private static final LockedContainerPdcAccess LOCKED_CONTAINER_PDC_ACCESS = LockedContainerPdcAccess.create();
 
     private static final LoadingCache<UUID, Block> selectedsign = CacheBuilder.newBuilder()
@@ -131,6 +134,22 @@ public class Utils {
         sender.sendMessage(messages);
     }
 
+    public static String colorize(String message) {
+        if (message == null || message.isEmpty()) return "";
+        Matcher matcher = HEX_COLOR_PATTERN.matcher(message);
+        StringBuffer replaced = new StringBuffer();
+        while (matcher.find()) {
+            String hex = matcher.group(1);
+            StringBuilder to = new StringBuilder("§x");
+            for (char c : hex.toCharArray()) {
+                to.append('§').append(c);
+            }
+            matcher.appendReplacement(replaced, Matcher.quoteReplacement(to.toString()));
+        }
+        matcher.appendTail(replaced);
+        return ChatColor.translateAlternateColorCodes('&', replaced.toString());
+    }
+
     public static boolean shouldNotify(Player player) {
         if (notified.contains(player.getUniqueId())) {
             return false;
@@ -213,6 +232,7 @@ public class Utils {
 
     public static void refreshLockedContainerPdcTag(Block block) {
         if (block == null) return;
+        if (ContainerPdcLockManager.refreshLockedContainerTag(block)) return;
 
         boolean locked = LocketteProAPI.isContainerEffectivelyLocked(block);
         setLockedContainerPdc(block, locked);
@@ -231,6 +251,9 @@ public class Utils {
 
     public static void refreshLockedContainerPdcTagsInChunk(Chunk chunk) {
         for (BlockState blockState : chunk.getTileEntities()) {
+            if (blockState instanceof Container) {
+                ContainerPdcLockManager.refreshLockedContainerTag(blockState.getBlock());
+            }
             if (!(blockState instanceof Sign)) continue;
             Block signBlock = blockState.getBlock();
             if (!LocketteProAPI.isLockSign(signBlock)) continue;

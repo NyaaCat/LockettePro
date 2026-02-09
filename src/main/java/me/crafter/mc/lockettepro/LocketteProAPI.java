@@ -19,6 +19,12 @@ public class LocketteProAPI {
 
     public static boolean isLocked(Block block) {
         if (block == null) return false;
+        if (ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData()) {
+                return data.isLocked();
+            }
+        }
         if (block.getBlockData() instanceof Door) {
             Block[] doors = getDoors(block);
             if (doors == null) return false;
@@ -51,6 +57,12 @@ public class LocketteProAPI {
     }
 
     public static boolean isOwner(Block block, Player player) {
+        if (block != null && ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData()) {
+                return data.isLocked() && ContainerPdcLockManager.isOwner(block, player);
+            }
+        }
 
         if (block.getBlockData() instanceof Door) {
             Block[] doors = getDoors(block);
@@ -85,6 +97,12 @@ public class LocketteProAPI {
     }
 
     public static boolean isUser(Block block, Player player) {
+        if (block != null && ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData()) {
+                return data.isLocked() && ContainerPdcLockManager.canRead(block, player);
+            }
+        }
         if (block.getType().equals(Material.LECTERN)) return true; //Lecterns can be used, but not stolen from
         if (block.getBlockData() instanceof Door) {
             Block[] doors = getDoors(block);
@@ -164,6 +182,12 @@ public class LocketteProAPI {
 
     public static boolean isOpenToEveryone(Block block) {
         if (block == null) return false;
+        if (ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData()) {
+                return data.isLocked() && ContainerPdcLockManager.isOpenToEveryone(block);
+            }
+        }
         return isOpenToEveryoneByTag(block);
     }
 
@@ -221,6 +245,12 @@ public class LocketteProAPI {
 
     public static boolean hasContainerBypassTag(Block block) {
         if (block == null) return false;
+        if (ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData()) {
+                return data.isLocked() && ContainerPdcLockManager.hasBypassTag(block);
+            }
+        }
         if (block.getBlockData() instanceof Door) {
             Block[] doors = getDoors(block);
             if (doors == null) return false;
@@ -274,11 +304,23 @@ public class LocketteProAPI {
 
     public static boolean shouldBypassContainerRestriction(Block block) {
         if (block == null) return false;
+        if (ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData()) {
+                return data.isLocked() && (ContainerPdcLockManager.isOpenToEveryone(block) || ContainerPdcLockManager.hasBypassTag(block));
+            }
+        }
         return isOpenToEveryone(block) || hasContainerBypassTag(block);
     }
 
     public static boolean isContainerEffectivelyLocked(Block block) {
         if (block == null) return false;
+        if (ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData()) {
+                return ContainerPdcLockManager.isContainerEffectivelyLocked(block);
+            }
+        }
         return isLocked(block) && !shouldBypassContainerRestriction(block);
     }
 

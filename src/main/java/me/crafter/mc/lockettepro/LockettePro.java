@@ -7,12 +7,17 @@ import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 public class LockettePro extends JavaPlugin {
 
@@ -30,6 +35,7 @@ public class LockettePro extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BlockPlayerListener(), this);
         getServer().getPluginManager().registerEvents(new BlockEnvironmentListener(), this);
         getServer().getPluginManager().registerEvents(new BlockInventoryMoveListener(), this);
+        getServer().getPluginManager().registerEvents(new BlockInventoryAccessListener(), this);
         // Dependency
         new Dependency(this);
         // If UUID is not enabled, UUID listener won't register
@@ -63,6 +69,11 @@ public class LockettePro extends JavaPlugin {
         List<String> commands = new ArrayList<>();
         commands.add("reload");
         commands.add("version");
+        commands.add("on");
+        commands.add("info");
+        commands.add("rename");
+        commands.add("permission");
+        commands.add("clone");
         commands.add("1");
         commands.add("2");
         commands.add("3");
@@ -73,10 +84,18 @@ public class LockettePro extends JavaPlugin {
         if (args != null && args.length == 1) {
             List<String> list = new ArrayList<>();
             for (String s : commands) {
-                if (s.startsWith(args[0])) {
+                if (s.startsWith(args[0].toLowerCase(Locale.ROOT))) {
                     list.add(s);
                 }
             }
+            return list;
+        }
+        if (args != null && args.length == 2 && "permission".equalsIgnoreCase(args[0])) {
+            List<String> list = new ArrayList<>();
+            list.add("xx:");
+            list.add("rw:");
+            list.add("ro:");
+            list.add("--:");
             return list;
         }
         return null;
@@ -161,7 +180,8 @@ public class LockettePro extends JavaPlugin {
                     return false;
                 }
                 Player player = (Player) sender;
-                switch (args[0]) {
+                String sub = args[0].toLowerCase(Locale.ROOT);
+                switch (sub) {
                     case "1":
                     case "2":
                     case "3":
@@ -234,6 +254,21 @@ public class LockettePro extends JavaPlugin {
                             Utils.sendMessages(player, Config.getLang("no-permission"));
                         }
                         break;
+                    case "on":
+                        handlePdcLockOn(player);
+                        break;
+                    case "info":
+                        handlePdcInfo(player);
+                        break;
+                    case "rename":
+                        handlePdcRename(player, args);
+                        break;
+                    case "permission":
+                        handlePdcPermission(player, args);
+                        break;
+                    case "clone":
+                        handlePdcClone(player);
+                        break;
                     case "force":
                         if (debug && player.hasPermission("lockettepro.debug")) {
                             Block selectedSign = Utils.getSelectedSign(player);
@@ -260,6 +295,187 @@ public class LockettePro extends JavaPlugin {
             }
         }
         return true;
+    }
+
+    private void handlePdcLockOn(Player player) {
+        Block block = ContainerPdcLockManager.getTargetedContainer(player);
+        if (block == null) {
+            Utils.sendMessages(player, Config.getLang("pdc-target-container-needed"));
+            return;
+        }
+
+        ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+        if (data.hasPdcData() && data.isLocked()) {
+            if (ContainerPdcLockManager.isOwner(block, player)) {
+                Utils.sendMessages(player, Config.getLang("pdc-lock-already-enabled"));
+            } else {
+                Utils.sendMessages(player, Config.getLang("pdc-no-owner-permission"));
+            }
+            return;
+        }
+
+        if (LocketteProAPI.isLocked(block) && !LocketteProAPI.isOwner(block, player)) {
+            Utils.sendMessages(player, Config.getLang("pdc-no-owner-permission"));
+            Utils.playAccessDenyEffect(player, block);
+            return;
+        }
+
+        if (ContainerPdcLockManager.lockWithOwner(block, player)) {
+            Utils.sendMessages(player, Config.getLang("pdc-lock-enabled"));
+            Utils.refreshLockedContainerPdcTagLater(block);
+        } else {
+            Utils.sendMessages(player, Config.getLang("pdc-lock-failed"));
+        }
+    }
+
+    private void handlePdcInfo(Player player) {
+        Block block = ContainerPdcLockManager.getTargetedContainer(player);
+        if (block == null) {
+            Utils.sendMessages(player, Config.getLang("pdc-target-container-needed"));
+            return;
+        }
+
+        ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+        if (!data.hasPdcData() || !data.isLocked()) {
+            Utils.sendMessages(player, Config.getLang("pdc-not-locked"));
+            return;
+        }
+
+        Utils.sendMessages(player, Config.getLang("pdc-info-header"));
+        String customName = ContainerPdcLockManager.getContainerCustomName(block);
+        if (customName == null || customName.isBlank()) {
+            customName = ChatColor.GRAY + "(none)" + ChatColor.RESET;
+        }
+        player.sendMessage(ChatColor.GOLD + " - Name: " + ChatColor.RESET + customName);
+        player.sendMessage(ChatColor.GOLD + " - Owners: " + ChatColor.RESET + ContainerPdcLockManager.formatList(
+                ContainerPdcLockManager.summarizePermissions(data.permissions(),
+                        EnumSet.of(ContainerPdcLockManager.PermissionAccess.OWNER))));
+        player.sendMessage(ChatColor.GOLD + " - RW: " + ChatColor.RESET + ContainerPdcLockManager.formatList(
+                ContainerPdcLockManager.summarizePermissions(data.permissions(),
+                        EnumSet.of(ContainerPdcLockManager.PermissionAccess.READ_WRITE))));
+        player.sendMessage(ChatColor.GOLD + " - RO: " + ChatColor.RESET + ContainerPdcLockManager.formatList(
+                ContainerPdcLockManager.summarizePermissions(data.permissions(),
+                        EnumSet.of(ContainerPdcLockManager.PermissionAccess.READ_ONLY))));
+        player.sendMessage(ChatColor.GOLD + " - locked_container: " + ChatColor.RESET + (LocketteProAPI.isContainerEffectivelyLocked(block) ? "true" : "false"));
+    }
+
+    private void handlePdcRename(Player player, String[] args) {
+        Block block = ContainerPdcLockManager.getTargetedContainer(player);
+        if (block == null) {
+            Utils.sendMessages(player, Config.getLang("pdc-target-container-needed"));
+            return;
+        }
+
+        ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+        if (!data.hasPdcData() || !data.isLocked()) {
+            Utils.sendMessages(player, Config.getLang("pdc-not-locked"));
+            return;
+        }
+
+        if (!ContainerPdcLockManager.isOwner(block, player)) {
+            Utils.sendMessages(player, Config.getLang("pdc-no-owner-permission"));
+            Utils.playAccessDenyEffect(player, block);
+            return;
+        }
+
+        if (args.length < 2) {
+            Utils.sendMessages(player, Config.getLang("pdc-rename-usage"));
+            return;
+        }
+
+        StringBuilder builder = new StringBuilder();
+        for (int i = 1; i < args.length; i++) {
+            if (i > 1) builder.append(' ');
+            builder.append(args[i]);
+        }
+        String renamed = Utils.colorize(builder.toString());
+        if (renamed.isBlank()) {
+            renamed = null;
+        }
+
+        if (ContainerPdcLockManager.setContainerCustomName(block, renamed)) {
+            Utils.sendMessages(player, Config.getLang("pdc-rename-updated"));
+        } else {
+            Utils.sendMessages(player, Config.getLang("pdc-rename-failed"));
+        }
+    }
+
+    private void handlePdcPermission(Player player, String[] args) {
+        Block block = ContainerPdcLockManager.getTargetedContainer(player);
+        if (block == null) {
+            Utils.sendMessages(player, Config.getLang("pdc-target-container-needed"));
+            return;
+        }
+
+        ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+        if (!data.hasPdcData() || !data.isLocked()) {
+            Utils.sendMessages(player, Config.getLang("pdc-not-locked"));
+            return;
+        }
+
+        if (!ContainerPdcLockManager.isOwner(block, player)) {
+            Utils.sendMessages(player, Config.getLang("pdc-no-owner-permission"));
+            Utils.playAccessDenyEffect(player, block);
+            return;
+        }
+
+        if (args.length != 2) {
+            Utils.sendMessages(player, Config.getLang("pdc-permission-usage"));
+            return;
+        }
+
+        ContainerPdcLockManager.PermissionMutation mutation = ContainerPdcLockManager.parsePermissionMutation(args[1]);
+        if (mutation == null) {
+            Utils.sendMessages(player, Config.getLang("pdc-permission-invalid"));
+            return;
+        }
+
+        LinkedHashMap<String, ContainerPdcLockManager.PermissionAccess> preview = new LinkedHashMap<>(data.permissions());
+        if (mutation.access() == ContainerPdcLockManager.PermissionAccess.NONE) {
+            preview.remove(mutation.subject());
+        } else {
+            preview.put(mutation.subject(), mutation.access());
+        }
+        boolean hasOwner = preview.values().stream().anyMatch(v -> v == ContainerPdcLockManager.PermissionAccess.OWNER);
+        if (!preview.isEmpty() && !hasOwner) {
+            Utils.sendMessages(player, Config.getLang("pdc-owner-required"));
+            return;
+        }
+
+        ContainerPdcLockManager.applyPermissionMutation(block, mutation);
+        Utils.refreshLockedContainerPdcTagLater(block);
+        Utils.sendMessages(player, Config.getLang("pdc-permission-updated"));
+    }
+
+    private void handlePdcClone(Player player) {
+        Block block = ContainerPdcLockManager.getTargetedContainer(player);
+        if (block == null) {
+            Utils.sendMessages(player, Config.getLang("pdc-target-container-needed"));
+            return;
+        }
+
+        ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+        if (!data.hasPdcData() || !data.isLocked()) {
+            Utils.sendMessages(player, Config.getLang("pdc-not-locked"));
+            return;
+        }
+
+        if (!ContainerPdcLockManager.isOwner(block, player)) {
+            Utils.sendMessages(player, Config.getLang("pdc-no-owner-permission"));
+            Utils.playAccessDenyEffect(player, block);
+            return;
+        }
+
+        ItemStack item = ContainerPdcLockManager.buildCloneItem(block);
+        if (item == null) {
+            Utils.sendMessages(player, Config.getLang("pdc-clone-failed"));
+            return;
+        }
+        Map<Integer, ItemStack> left = player.getInventory().addItem(item);
+        if (!left.isEmpty()) {
+            left.values().forEach(drop -> player.getWorld().dropItemNaturally(player.getLocation(), drop));
+        }
+        Utils.sendMessages(player, Config.getLang("pdc-clone-given"));
     }
 
 }

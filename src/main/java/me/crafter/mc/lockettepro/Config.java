@@ -36,6 +36,9 @@ public class Config {
     private static byte blockhopperminecart = 0;
     private static boolean lockexpire = false;
     private static double lockexpiredays = 60D;
+    private static Material permissioncloneitemmaterial = Material.FEATHER;
+    private static String permissioncloneitemname = "&6[LockettePro] &ePermission Clone";
+    private static List<String> permissioncloneitemlore = new ArrayList<>();
     public static boolean protocollib = false;
     public static boolean worldguard = false;
     public static boolean coreprotect = false;
@@ -114,6 +117,23 @@ public class Config {
         if (lockdefaultcreatetime < -1L) lockdefaultcreatetime = -1L;
         lockexpirestring = ChatColor.translateAlternateColorCodes('&',
                 config.getString("lock-expire-string", "&3[Expired]"));
+        String cloneMaterialString = config.getString("permission-clone-item-material", "FEATHER");
+        Material cloneMaterial = Material.matchMaterial(cloneMaterialString == null ? "" : cloneMaterialString.toUpperCase(Locale.ROOT));
+        if (cloneMaterial == null || cloneMaterial.isAir() || !cloneMaterial.isItem()) {
+            cloneMaterial = Material.FEATHER;
+        }
+        permissioncloneitemmaterial = cloneMaterial;
+        permissioncloneitemname = config.getString("permission-clone-item-name", "&6[LockettePro] &ePermission Clone");
+        if (permissioncloneitemname == null || permissioncloneitemname.isBlank()) {
+            permissioncloneitemname = "&6[LockettePro] &ePermission Clone";
+        }
+        permissioncloneitemlore = new ArrayList<>(config.getStringList("permission-clone-item-lore"));
+        if (permissioncloneitemlore.isEmpty()) {
+            permissioncloneitemlore = new ArrayList<>(Arrays.asList(
+                    "&7Use this item on a container to",
+                    "&7apply copied lock permissions."
+            ));
+        }
         List<String> unprocesseditems = config.getStringList("lockables");
         lockables = new HashSet<Material>();
         for (String unprocesseditem : unprocesseditems) {
@@ -175,6 +195,13 @@ public class Config {
         config.addDefault("lock-expire-days", 999.9D);
         config.addDefault("lock-default-create-time-unix", -1L);
         config.addDefault("lock-expire-string", "&3[Expired]");
+        config.addDefault("permission-clone-item-material", "FEATHER");
+        config.addDefault("permission-clone-item-name", "&6[LockettePro] &ePermission Clone");
+        String[] permission_clone_item_lore = {
+                "&7Use this item on a container to",
+                "&7apply copied lock permissions."
+        };
+        config.addDefault("permission-clone-item-lore", permission_clone_item_lore);
 
         config.options().copyDefaults(true);
         try {
@@ -305,6 +332,18 @@ public class Config {
 
     public static boolean isProtectionExempted(String against) {
         return protectionexempt.contains(against);
+    }
+
+    public static Material getPermissionCloneItemMaterial() {
+        return permissioncloneitemmaterial;
+    }
+
+    public static String getPermissionCloneItemName() {
+        return permissioncloneitemname;
+    }
+
+    public static List<String> getPermissionCloneItemLore() {
+        return new ArrayList<>(permissioncloneitemlore);
     }
 
 }

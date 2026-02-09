@@ -32,6 +32,37 @@ public class BlockPlayerListener implements Listener {
                     "SMOKE" : "SMOKE_NORMAL"
     ); // SMOKE_NORMAL changed to SMOKE above 1.20.4
 
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onUsePermissionCloneTool(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        if (LockettePro.needCheckHand() && event.getHand() != EquipmentSlot.HAND) return;
+        ItemStack item = event.getItem();
+        if (!ContainerPdcLockManager.isCloneItem(item)) return;
+
+        Block clickedBlock = event.getClickedBlock();
+        if (clickedBlock == null || !ContainerPdcLockManager.isContainerBlock(clickedBlock)) {
+            Utils.sendMessages(event.getPlayer(), Config.getLang("pdc-target-container-needed"));
+            event.setCancelled(true);
+            return;
+        }
+
+        Player player = event.getPlayer();
+        if (!ContainerPdcLockManager.canUseCloneTarget(clickedBlock, player)) {
+            Utils.sendMessages(player, Config.getLang("pdc-no-owner-permission"));
+            Utils.playAccessDenyEffect(player, clickedBlock);
+            event.setCancelled(true);
+            return;
+        }
+
+        if (ContainerPdcLockManager.applyCloneItem(clickedBlock, player, item)) {
+            Utils.sendMessages(player, Config.getLang("pdc-clone-applied"));
+            Utils.refreshLockedContainerPdcTagLater(clickedBlock);
+        } else {
+            Utils.sendMessages(player, Config.getLang("pdc-clone-failed"));
+        }
+        event.setCancelled(true);
+    }
+
     // Quick protect for chests
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onPlayerQuickLockChest(PlayerInteractEvent event) {
