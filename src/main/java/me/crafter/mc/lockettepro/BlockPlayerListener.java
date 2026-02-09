@@ -56,6 +56,13 @@ public class BlockPlayerListener implements Listener {
             return;
         }
 
+        if (!ContainerPdcLockManager.isCloneItemOwnedBy(item, player)
+                || !ContainerPdcLockManager.clonePermissionsOwnedBy(item, player)) {
+            Utils.sendMessages(player, Config.getLang("pdc-clone-owner-mismatch"));
+            event.setCancelled(true);
+            return;
+        }
+
         if (!ContainerPdcLockManager.canUseCloneTarget(clickedBlock, player)) {
             Utils.sendMessages(player, Config.getLang("pdc-no-owner-permission"));
             Utils.playAccessDenyEffect(player, clickedBlock);
@@ -464,7 +471,7 @@ public class BlockPlayerListener implements Listener {
         Block block = event.getBlock();
         Player player = event.getPlayer();
         if (!player.hasPermission("lockettepro.lock")) return;
-        if (Utils.shouldNotify(player) && Config.isLockable(block.getType())) {
+        if (Utils.shouldNotify(player) && LocketteProAPI.isLockable(block)) {
             switch (Config.getQuickProtectAction()) {
                 case (byte) 0 ->
                         Utils.sendMessages(player, Config.getLang("you-can-manual-lock-it"));

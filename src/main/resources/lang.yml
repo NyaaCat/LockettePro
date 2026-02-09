@@ -48,6 +48,7 @@ pdc-self-owner-change-blocked: '&6[LockettePro] &cYou cannot remove or downgrade
 pdc-clone-given: '&6[LockettePro] &aPermission clone item added to your inventory.'
 pdc-clone-applied: '&6[LockettePro] &aPermissions cloned to this container.'
 pdc-clone-failed: '&6[LockettePro] &cFailed to clone permissions.'
+pdc-clone-owner-mismatch: '&6[LockettePro] &cClone tool owner mismatch. You can only use your own clone item on your own container.'
 pdc-owner-required: '&6[LockettePro] &cAt least one owner (xx) must remain while locked.'
 group-usage: '&6[LockettePro] &cUsage: /lock group <create|delete|add|remove|info|list> ...'
 group-create-usage: '&6[LockettePro] &cUsage: /lock group create <groupName>'

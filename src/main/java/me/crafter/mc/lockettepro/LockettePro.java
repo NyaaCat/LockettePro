@@ -437,7 +437,7 @@ public class LockettePro extends JavaPlugin {
             return;
         }
 
-        if (LocketteProAPI.isLocked(block) && !LocketteProAPI.isOwner(block, player)) {
+        if (LocketteProAPI.isLockedBySign(block) && !LocketteProAPI.isOwnerBySign(block, player)) {
             Utils.sendMessages(player, Config.getLang("pdc-no-owner-permission"));
             Utils.playAccessDenyEffect(player, block);
             return;
@@ -630,7 +630,7 @@ public class LockettePro extends JavaPlugin {
             return;
         }
 
-        ItemStack item = ContainerPdcLockManager.buildCloneItem(block);
+        ItemStack item = ContainerPdcLockManager.buildCloneItem(block, player);
         if (item == null) {
             Utils.sendMessages(player, Config.getLang("pdc-clone-failed"));
             return;

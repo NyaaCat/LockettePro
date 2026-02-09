@@ -82,11 +82,14 @@ public class DependencyProtocolLib {
     }
 
     public static NbtCompound onSignSend(Player player, NbtCompound signNbt) {
+        if (signNbt == null) {
+            return null;
+        }
         NbtCompound frontText = signNbt.getCompound("front_text");
         if (frontText == null) {
             return signNbt;
         }
-        NbtList<?> msgs = frontText.getList("messages");
+        NbtList<?> msgs = getListSafely(frontText, "messages");
         if (msgs == null) {
             return signNbt;
         }
@@ -140,7 +143,7 @@ public class DependencyProtocolLib {
         if (text != null && !text.isEmpty()) {
             builder.append(text);
         }
-        NbtList<?> extraList = compound.getList("extra");
+        NbtList<?> extraList = getListSafely(compound, "extra");
         if (extraList != null) {
             @SuppressWarnings("unchecked")
             List<NbtBase<?>> extras = (List<NbtBase<?>>) (List<?>) extraList.getValue();
@@ -169,5 +172,16 @@ public class DependencyProtocolLib {
     }
     private static String formatText(String string) {
         return "{\"text\":\"" + string + "\"}";
+    }
+
+    private static NbtList<?> getListSafely(NbtCompound compound, String key) {
+        if (compound == null || key == null) {
+            return null;
+        }
+        try {
+            return compound.getList(key);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 }

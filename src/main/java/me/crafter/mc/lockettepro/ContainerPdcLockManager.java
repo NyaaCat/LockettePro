@@ -47,6 +47,8 @@ public final class ContainerPdcLockManager {
     private static final String CLONE_MARKER_DEFAULT_PATH = "perm_clone";
     private static final String CLONE_NAME_KEY_STRING = "lockettepro:perm_clone_name";
     private static final String CLONE_NAME_DEFAULT_PATH = "perm_clone_name";
+    private static final String CLONE_OWNER_KEY_STRING = "lockettepro:perm_clone_owner";
+    private static final String CLONE_OWNER_DEFAULT_PATH = "perm_clone_owner";
     private static final String CLONE_PERMISSION_KEY_PATH_PREFIX = "clone_perm.";
     private static final String SUBJECT_HEX_ENCODING_PREFIX = "h_";
 
@@ -150,6 +152,10 @@ public final class ContainerPdcLockManager {
 
     private static NamespacedKey cloneNameKey() {
         return createNamespacedKey(CLONE_NAME_KEY_STRING, CLONE_NAME_KEY_STRING, CLONE_NAME_DEFAULT_PATH);
+    }
+
+    private static NamespacedKey cloneOwnerKey() {
+        return createNamespacedKey(CLONE_OWNER_KEY_STRING, CLONE_OWNER_KEY_STRING, CLONE_OWNER_DEFAULT_PATH);
     }
 
     private static NamespacedKey createPermissionKey(String subject) {
@@ -738,8 +744,9 @@ public final class ContainerPdcLockManager {
         return container.getCustomName();
     }
 
-    public static ItemStack buildCloneItem(Block sourceBlock) {
+    public static ItemStack buildCloneItem(Block sourceBlock, Player operator) {
         if (!isContainerBlock(sourceBlock)) return null;
+        if (operator == null) return null;
 
         LockData data = getLockData(sourceBlock);
         if (!data.hasPdcData() || !data.isLocked()) return null;
@@ -761,6 +768,7 @@ public final class ContainerPdcLockManager {
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         pdc.set(cloneMarkerKey(), PersistentDataType.BYTE, (byte) 1);
+        pdc.set(cloneOwnerKey(), PersistentDataType.STRING, operator.getUniqueId().toString());
 
         String customName = getContainerCustomName(sourceBlock);
         if (customName != null && !customName.isBlank()) {
@@ -786,12 +794,32 @@ public final class ContainerPdcLockManager {
         return pdc.has(cloneMarkerKey(), PersistentDataType.BYTE);
     }
 
+    public static boolean isCloneItemOwnedBy(ItemStack itemStack, Player player) {
+        if (player == null || !isCloneItem(itemStack)) return false;
+        UUID owner = getCloneItemOwner(itemStack);
+        return owner != null && owner.equals(player.getUniqueId());
+    }
+
+    public static boolean clonePermissionsOwnedBy(ItemStack itemStack, Player player) {
+        if (player == null || !isCloneItem(itemStack)) return false;
+        Map<String, PermissionAccess> permissions = readClonePermissions(itemStack);
+        return hasOnlySelfOwners(permissions, player);
+    }
+
     public static boolean applyCloneItem(Block targetBlock, Player operator, ItemStack itemStack) {
         if (!isContainerBlock(targetBlock)) return false;
         if (!isCloneItem(itemStack)) return false;
+        if (operator == null) return false;
+        if (!isCloneItemOwnedBy(itemStack, operator)) return false;
 
         Map<String, PermissionAccess> clonedPermissions = readClonePermissions(itemStack);
         if (clonedPermissions.isEmpty()) return false;
+        if (!hasOnlySelfOwners(clonedPermissions, operator)) return false;
+
+        LockData targetData = getLockData(targetBlock);
+        if (targetData.hasPdcData() && targetData.isLocked()) {
+            if (!hasOnlySelfOwners(targetData.permissions(), operator)) return false;
+        }
 
         boolean hasOwner = clonedPermissions.values().stream().anyMatch(v -> v == PermissionAccess.OWNER);
         if (!hasOwner) {
@@ -832,6 +860,34 @@ public final class ContainerPdcLockManager {
         return pdc.get(cloneNameKey(), PersistentDataType.STRING);
     }
 
+    private static UUID getCloneItemOwner(ItemStack itemStack) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return null;
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        String raw = pdc.get(cloneOwnerKey(), PersistentDataType.STRING);
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private static boolean hasOnlySelfOwners(Map<String, PermissionAccess> permissions, Player player) {
+        if (permissions == null || permissions.isEmpty() || player == null) return false;
+        boolean foundOwner = false;
+        for (Map.Entry<String, PermissionAccess> entry : permissions.entrySet()) {
+            if (entry.getValue() != PermissionAccess.OWNER) continue;
+            foundOwner = true;
+            if (!isSelfSubject(player, entry.getKey())) {
+                return false;
+            }
+        }
+        return foundOwner;
+    }
+
     private static void removeClonePermissionKeys(PersistentDataContainer pdc) {
         List<NamespacedKey> remove = new ArrayList<>();
         for (NamespacedKey key : pdc.getKeys()) {
@@ -852,9 +908,9 @@ public final class ContainerPdcLockManager {
             return isOwner(targetBlock, player);
         }
 
-        boolean signLocked = LocketteProAPI.isLocked(targetBlock);
+        boolean signLocked = LocketteProAPI.isLockedBySign(targetBlock);
         if (signLocked) {
-            return LocketteProAPI.isOwner(targetBlock, player);
+            return LocketteProAPI.isOwnerBySign(targetBlock, player);
         }
 
         return true;

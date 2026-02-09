@@ -49,6 +49,7 @@ pdc-self-owner-change-blocked: '&6[LockettePro] &c不能删除或降级你自己
 pdc-clone-given: '&6[LockettePro] &a权限克隆物品已发放到背包。'
 pdc-clone-applied: '&6[LockettePro] &a权限已复制到该容器。'
 pdc-clone-failed: '&6[LockettePro] &c权限复制失败。'
+pdc-clone-owner-mismatch: '&6[LockettePro] &c权限复制工具所有者不匹配。你只能对自己的容器使用自己的复制工具。'
 pdc-owner-required: '&6[LockettePro] &c容器保持上锁时，必须至少保留一个所有者(xx)。'
 group-usage: '&6[LockettePro] &c用法: /lock group <create|delete|add|remove|info|list> ...'
 group-create-usage: '&6[LockettePro] &c用法: /lock group create <组名>'

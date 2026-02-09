@@ -25,6 +25,11 @@ public class LocketteProAPI {
                 return data.isLocked();
             }
         }
+        return isLockedBySign(block);
+    }
+
+    public static boolean isLockedBySign(Block block) {
+        if (block == null) return false;
         if (block.getBlockData() instanceof Door) {
             Block[] doors = getDoors(block);
             if (doors == null) return false;
@@ -63,7 +68,11 @@ public class LocketteProAPI {
                 return data.isLocked() && ContainerPdcLockManager.isOwner(block, player);
             }
         }
+        return isOwnerBySign(block, player);
+    }
 
+    public static boolean isOwnerBySign(Block block, Player player) {
+        if (block == null || player == null) return false;
         if (block.getBlockData() instanceof Door) {
             Block[] doors = getDoors(block);
             if (doors == null) return false;
@@ -367,19 +376,18 @@ public class LocketteProAPI {
     }
 
     public static boolean isLockable(Block block) {
+        if (block == null) return false;
         Material material = block.getType();
-        //Bad blocks
-        if (Tag.SIGNS.isTagged(material)) {
-            return false;
-        }
-        if (Config.isLockable(material)) { // Directly lockable
+
+        if (isDirectlyLockableByApi(block)) {
             return true;
-        } else { // Indirectly lockable
-            Block blockup = block.getRelative(BlockFace.UP);
-            if (isUpDownAlsoLockableBlock(blockup)) return true;
-            Block blockdown = block.getRelative(BlockFace.DOWN);
-            return isUpDownAlsoLockableBlock(blockdown);
         }
+
+        // Indirect lock targets around up/down door halves.
+        Block blockup = block.getRelative(BlockFace.UP);
+        if (isUpDownAlsoLockableBlock(blockup)) return true;
+        Block blockdown = block.getRelative(BlockFace.DOWN);
+        return isUpDownAlsoLockableBlock(blockdown);
     }
 
 
@@ -388,10 +396,23 @@ public class LocketteProAPI {
     }
 
     public static boolean isUpDownAlsoLockableBlock(Block block) {
-        if (Config.isLockable(block.getType())) {
-            return (block.getBlockData() instanceof Door);
+        return block != null && block.getBlockData() instanceof Door;
+    }
+
+    private static boolean isDirectlyLockableByApi(Block block) {
+        Material material = block.getType();
+        if (Tag.SIGNS.isTagged(material) || material == Material.SCAFFOLDING) {
+            return false;
         }
-        return false;
+        if (Config.isLockable(material)) {
+            return true;
+        }
+        if (block.getState() instanceof Container) {
+            return true;
+        }
+        return block.getBlockData() instanceof Door
+                || block.getBlockData() instanceof TrapDoor
+                || block.getBlockData() instanceof Gate;
     }
 
     public static boolean mayInterfere(Block block, Player player) {
