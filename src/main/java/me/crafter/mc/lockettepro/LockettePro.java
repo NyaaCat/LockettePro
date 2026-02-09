@@ -190,6 +190,7 @@ public class LockettePro extends JavaPlugin {
         candidates.addAll(onlineNames);
 
         candidates.add("#hopper");
+        candidates.add("#redstone");
 
         candidates.addAll(Config.getEveryoneSignStrings());
         candidates.addAll(Config.getContainerBypassSignStrings());

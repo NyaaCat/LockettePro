@@ -53,6 +53,7 @@ public final class ContainerPdcLockManager {
     private static final String SUBJECT_HEX_ENCODING_PREFIX = "h_";
 
     private static final String ENTITY_HOPPER = "#hopper";
+    private static final String ENTITY_REDSTONE = "#redstone";
     private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
     private static final String PLAYER_NAME_CACHE_MISS = "";
     private static volatile Cache<String, LockData> runtimeLockDataCache = createRuntimeLockDataCache();
@@ -372,6 +373,13 @@ public final class ContainerPdcLockManager {
         return hasBypassTag(data.permissions);
     }
 
+    public static boolean hasRedstoneBypassTag(Block block) {
+        if (!isContainerBlock(block)) return false;
+        LockData data = getLockData(block);
+        if (!data.hasPdcData() || !data.isLocked()) return false;
+        return hasRedstoneBypassTag(data.permissions);
+    }
+
     public static boolean isContainerEffectivelyLocked(Block block) {
         if (!isContainerBlock(block)) return false;
         LockData data = getLockData(block);
@@ -587,6 +595,26 @@ public final class ContainerPdcLockManager {
                 if (Config.isContainerBypassSignString(subject) || Config.isContainerBypassSignString(subject.toLowerCase(Locale.ROOT))) {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasRedstoneBypassTag(Map<String, PermissionAccess> permissions) {
+        for (Map.Entry<String, PermissionAccess> entry : permissions.entrySet()) {
+            PermissionAccess access = entry.getValue();
+            if (access == PermissionAccess.NONE) continue;
+            if (!access.atLeast(PermissionAccess.READ_WRITE)) continue;
+            String subject = entry.getKey();
+            if (PermissionGroupStore.isGroupReference(subject)) {
+                String groupName = PermissionGroupStore.extractGroupName(subject);
+                if (groupName != null && PermissionGroupStore.groupAllowsEntity(groupName, ENTITY_REDSTONE)) {
+                    return true;
+                }
+                continue;
+            }
+            if (ENTITY_REDSTONE.equalsIgnoreCase(subject)) {
+                return true;
             }
         }
         return false;

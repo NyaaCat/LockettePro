@@ -1,6 +1,9 @@
 package me.crafter.mc.lockettepro;
 
-import java.util.Iterator;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+
+import java.util.concurrent.TimeUnit;
 
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -12,6 +15,7 @@ import org.bukkit.entity.Zombie;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockDispenseEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
@@ -23,6 +27,10 @@ import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.StructureGrowEvent;
 
 public class BlockEnvironmentListener implements Listener {
+    private static final Cache<String, Boolean> redstoneDispenseLockCache = CacheBuilder.newBuilder()
+            .maximumSize(4096)
+            .expireAfterWrite(100, TimeUnit.MILLISECONDS)
+            .build();
 
     // Prevent explosion break block
     @EventHandler(priority = EventPriority.HIGH)
@@ -81,6 +89,37 @@ public class BlockEnvironmentListener implements Listener {
         if (LocketteProAPI.isProtected(event.getBlock())) {
             event.setNewCurrent(event.getOldCurrent());
         }
+    }
+
+    // Prevent redstone-triggered dispensing from protected dispenser/dropper
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlockDispense(BlockDispenseEvent event) {
+        if (Config.isProtectionExempted("redstone")) return;
+        if (isRedstoneDispenseLocked(event.getBlock())) {
+            event.setCancelled(true);
+        }
+    }
+
+    private boolean isRedstoneDispenseLocked(Block block) {
+        if (block == null) return false;
+
+        // PDC path already uses ContainerPdcLockManager runtime KV cache.
+        if (ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData()) {
+                return LocketteProAPI.isContainerRedstoneEffectivelyLocked(block);
+            }
+        }
+
+        // Sign-only fallback path: keep a tiny local cache for high-frequency redstone ticks.
+        String key = block.getWorld().getUID() + ":" + block.getX() + ":" + block.getY() + ":" + block.getZ();
+        Boolean cached = redstoneDispenseLockCache.getIfPresent(key);
+        if (cached != null) {
+            return cached;
+        }
+        boolean locked = LocketteProAPI.isContainerRedstoneEffectivelyLocked(block);
+        redstoneDispenseLockCache.put(key, locked);
+        return locked;
     }
 
     // Prevent villager open door

@@ -14,6 +14,8 @@ import org.bukkit.entity.Player;
 
 public class LocketteProAPI {
 
+    private static final String ENTITY_REDSTONE = "#redstone";
+
     public static BlockFace[] newsfaces = {BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST};
     public static BlockFace[] allfaces = {BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST, BlockFace.UP, BlockFace.DOWN};
 
@@ -323,6 +325,72 @@ public class LocketteProAPI {
         return false;
     }
 
+    public static boolean hasRedstoneBypassTag(Block block) {
+        if (block == null) return false;
+        if (ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData()) {
+                return data.isLocked() && ContainerPdcLockManager.hasRedstoneBypassTag(block);
+            }
+        }
+        if (block.getBlockData() instanceof Door) {
+            Block[] doors = getDoors(block);
+            if (doors == null) return false;
+            for (BlockFace doorface : newsfaces) {
+                Block relative0 = doors[0].getRelative(doorface), relative1 = doors[1].getRelative(doorface);
+                if (relative0.getType() == doors[0].getType() && relative1.getType() == doors[1].getType()) {
+                    if (hasRedstoneBypassTagSingleBlock(relative1.getRelative(BlockFace.UP), doorface.getOppositeFace()))
+                        return true;
+                    if (hasRedstoneBypassTagSingleBlock(relative1, doorface.getOppositeFace())) return true;
+                    if (hasRedstoneBypassTagSingleBlock(relative0, doorface.getOppositeFace())) return true;
+                    if (hasRedstoneBypassTagSingleBlock(relative0.getRelative(BlockFace.DOWN), doorface.getOppositeFace()))
+                        return true;
+                }
+            }
+            if (hasRedstoneBypassTagSingleBlock(doors[1].getRelative(BlockFace.UP), null)) return true;
+            if (hasRedstoneBypassTagSingleBlock(doors[1], null)) return true;
+            if (hasRedstoneBypassTagSingleBlock(doors[0], null)) return true;
+            if (hasRedstoneBypassTagSingleBlock(doors[0].getRelative(BlockFace.DOWN), null)) return true;
+        } else if (block.getBlockData() instanceof Chest) {
+            BlockFace chestface = getRelativeChestFace(block);
+            if (chestface != null) {
+                Block relativechest = block.getRelative(chestface);
+                if (hasRedstoneBypassTagSingleBlock(relativechest, chestface.getOppositeFace())) return true;
+            }
+        }
+        return hasRedstoneBypassTagSingleBlock(block, null);
+    }
+
+    private static boolean hasRedstoneBypassTagSingleBlock(Block block, BlockFace exempt) {
+        for (BlockFace blockface : newsfaces) {
+            if (blockface == exempt) continue;
+            Block relativeblock = block.getRelative(blockface);
+            if (isLockSignOrAdditionalSign(relativeblock) && getFacing(relativeblock) == blockface) {
+                if (hasRedstoneBypassTagOnSign(relativeblock)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasRedstoneBypassTagOnSign(Block block) {
+        String[] lines = ((Sign) block.getState()).getSide(Side.FRONT).getLines();
+        for (int i = 1; i < 4; i++) {
+            String line = lines[i] == null ? "" : lines[i].trim();
+            if (ENTITY_REDSTONE.equalsIgnoreCase(line)) {
+                return true;
+            }
+            if (PermissionGroupStore.isGroupReference(line)) {
+                String groupName = PermissionGroupStore.extractGroupName(line);
+                if (groupName != null && PermissionGroupStore.groupAllowsEntity(groupName, ENTITY_REDSTONE)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public static boolean shouldBypassContainerRestriction(Block block) {
         if (block == null) return false;
         if (ContainerPdcLockManager.isContainerBlock(block)) {
@@ -345,6 +413,17 @@ public class LocketteProAPI {
         return hasContainerBypassTag(block);
     }
 
+    public static boolean shouldBypassContainerRedstoneRestriction(Block block) {
+        if (block == null) return false;
+        if (ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData()) {
+                return data.isLocked() && ContainerPdcLockManager.hasRedstoneBypassTag(block);
+            }
+        }
+        return hasRedstoneBypassTag(block);
+    }
+
     public static boolean isContainerEffectivelyLocked(Block block) {
         if (block == null) return false;
         if (ContainerPdcLockManager.isContainerBlock(block)) {
@@ -365,6 +444,17 @@ public class LocketteProAPI {
             }
         }
         return isLocked(block) && !shouldBypassContainerTransferRestriction(block);
+    }
+
+    public static boolean isContainerRedstoneEffectivelyLocked(Block block) {
+        if (block == null) return false;
+        if (ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData()) {
+                return data.isLocked() && !ContainerPdcLockManager.hasRedstoneBypassTag(block);
+            }
+        }
+        return isLocked(block) && !shouldBypassContainerRedstoneRestriction(block);
     }
 
     public static boolean isOwnerOfSign(Block block, Player player) { // Requires isSign
