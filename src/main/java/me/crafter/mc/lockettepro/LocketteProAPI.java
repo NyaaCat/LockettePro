@@ -325,6 +325,17 @@ public class LocketteProAPI {
         return isOpenToEveryone(block) || hasContainerBypassTag(block);
     }
 
+    public static boolean shouldBypassContainerTransferRestriction(Block block) {
+        if (block == null) return false;
+        if (ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData()) {
+                return data.isLocked() && ContainerPdcLockManager.hasBypassTag(block);
+            }
+        }
+        return hasContainerBypassTag(block);
+    }
+
     public static boolean isContainerEffectivelyLocked(Block block) {
         if (block == null) return false;
         if (ContainerPdcLockManager.isContainerBlock(block)) {
@@ -334,6 +345,17 @@ public class LocketteProAPI {
             }
         }
         return isLocked(block) && !shouldBypassContainerRestriction(block);
+    }
+
+    public static boolean isContainerTransferEffectivelyLocked(Block block) {
+        if (block == null) return false;
+        if (ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData()) {
+                return data.isLocked() && !ContainerPdcLockManager.hasBypassTag(block);
+            }
+        }
+        return isLocked(block) && !shouldBypassContainerTransferRestriction(block);
     }
 
     public static boolean isOwnerOfSign(Block block, Player player) { // Requires isSign

@@ -541,7 +541,9 @@ public final class ContainerPdcLockManager {
 
     private static boolean isOpenToEveryone(Map<String, PermissionAccess> permissions) {
         for (Map.Entry<String, PermissionAccess> entry : permissions.entrySet()) {
-            if (entry.getValue() == PermissionAccess.NONE) continue;
+            PermissionAccess access = entry.getValue();
+            if (access == PermissionAccess.NONE) continue;
+            if (!access.atLeast(PermissionAccess.READ_WRITE)) continue;
             String subject = entry.getKey();
             if (PermissionGroupStore.isGroupReference(subject)) {
                 String groupName = PermissionGroupStore.extractGroupName(subject);
@@ -561,7 +563,9 @@ public final class ContainerPdcLockManager {
 
     private static boolean hasBypassTag(Map<String, PermissionAccess> permissions) {
         for (Map.Entry<String, PermissionAccess> entry : permissions.entrySet()) {
-            if (entry.getValue() == PermissionAccess.NONE) continue;
+            PermissionAccess access = entry.getValue();
+            if (access == PermissionAccess.NONE) continue;
+            if (!access.atLeast(PermissionAccess.READ_WRITE)) continue;
             String subject = entry.getKey();
             if (PermissionGroupStore.isGroupReference(subject)) {
                 String groupName = PermissionGroupStore.extractGroupName(subject);

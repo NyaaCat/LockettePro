@@ -61,7 +61,7 @@ public class BlockInventoryMoveListener implements Listener {
                 if (Utils.hasValidCache(block)) {
                     return Utils.getAccess(block);
                 } else {
-                    if (LocketteProAPI.isContainerEffectivelyLocked(block)) {
+                    if (LocketteProAPI.isContainerTransferEffectivelyLocked(block)) {
                         Utils.setCache(block, true);
                         return true;
                     } else {
@@ -70,7 +70,7 @@ public class BlockInventoryMoveListener implements Listener {
                     }
                 }
             } else { // Cache is disabled
-                return LocketteProAPI.isContainerEffectivelyLocked(block);
+                return LocketteProAPI.isContainerTransferEffectivelyLocked(block);
             }
         }
         return false;
