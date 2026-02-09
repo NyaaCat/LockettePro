@@ -219,7 +219,7 @@ public class LocketteProAPI {
         return false;
     }
 
-    public static boolean shouldClearContainerPdcTag(Block block) {
+    public static boolean hasContainerBypassTag(Block block) {
         if (block == null) return false;
         if (block.getBlockData() instanceof Door) {
             Block[] doors = getDoors(block);
@@ -227,34 +227,34 @@ public class LocketteProAPI {
             for (BlockFace doorface : newsfaces) {
                 Block relative0 = doors[0].getRelative(doorface), relative1 = doors[1].getRelative(doorface);
                 if (relative0.getType() == doors[0].getType() && relative1.getType() == doors[1].getType()) {
-                    if (hasPdcClearTagSingleBlock(relative1.getRelative(BlockFace.UP), doorface.getOppositeFace()))
+                    if (hasContainerBypassTagSingleBlock(relative1.getRelative(BlockFace.UP), doorface.getOppositeFace()))
                         return true;
-                    if (hasPdcClearTagSingleBlock(relative1, doorface.getOppositeFace())) return true;
-                    if (hasPdcClearTagSingleBlock(relative0, doorface.getOppositeFace())) return true;
-                    if (hasPdcClearTagSingleBlock(relative0.getRelative(BlockFace.DOWN), doorface.getOppositeFace()))
+                    if (hasContainerBypassTagSingleBlock(relative1, doorface.getOppositeFace())) return true;
+                    if (hasContainerBypassTagSingleBlock(relative0, doorface.getOppositeFace())) return true;
+                    if (hasContainerBypassTagSingleBlock(relative0.getRelative(BlockFace.DOWN), doorface.getOppositeFace()))
                         return true;
                 }
             }
-            if (hasPdcClearTagSingleBlock(doors[1].getRelative(BlockFace.UP), null)) return true;
-            if (hasPdcClearTagSingleBlock(doors[1], null)) return true;
-            if (hasPdcClearTagSingleBlock(doors[0], null)) return true;
-            if (hasPdcClearTagSingleBlock(doors[0].getRelative(BlockFace.DOWN), null)) return true;
+            if (hasContainerBypassTagSingleBlock(doors[1].getRelative(BlockFace.UP), null)) return true;
+            if (hasContainerBypassTagSingleBlock(doors[1], null)) return true;
+            if (hasContainerBypassTagSingleBlock(doors[0], null)) return true;
+            if (hasContainerBypassTagSingleBlock(doors[0].getRelative(BlockFace.DOWN), null)) return true;
         } else if (block.getBlockData() instanceof Chest) {
             BlockFace chestface = getRelativeChestFace(block);
             if (chestface != null) {
                 Block relativechest = block.getRelative(chestface);
-                if (hasPdcClearTagSingleBlock(relativechest, chestface.getOppositeFace())) return true;
+                if (hasContainerBypassTagSingleBlock(relativechest, chestface.getOppositeFace())) return true;
             }
         }
-        return hasPdcClearTagSingleBlock(block, null);
+        return hasContainerBypassTagSingleBlock(block, null);
     }
 
-    private static boolean hasPdcClearTagSingleBlock(Block block, BlockFace exempt) {
+    private static boolean hasContainerBypassTagSingleBlock(Block block, BlockFace exempt) {
         for (BlockFace blockface : newsfaces) {
             if (blockface == exempt) continue;
             Block relativeblock = block.getRelative(blockface);
             if (isLockSignOrAdditionalSign(relativeblock) && getFacing(relativeblock) == blockface) {
-                if (hasPdcClearTagOnSign(relativeblock)) {
+                if (hasContainerBypassTagOnSign(relativeblock)) {
                     return true;
                 }
             }
@@ -262,14 +262,24 @@ public class LocketteProAPI {
         return false;
     }
 
-    private static boolean hasPdcClearTagOnSign(Block block) {
+    private static boolean hasContainerBypassTagOnSign(Block block) {
         String[] lines = ((Sign) block.getState()).getSide(Side.FRONT).getLines();
         for (int i = 1; i < 4; i++) {
-            if (Config.isPdcClearSignString(lines[i])) {
+            if (Config.isContainerBypassSignString(lines[i])) {
                 return true;
             }
         }
         return false;
+    }
+
+    public static boolean shouldBypassContainerRestriction(Block block) {
+        if (block == null) return false;
+        return isOpenToEveryone(block) || hasContainerBypassTag(block);
+    }
+
+    public static boolean isContainerEffectivelyLocked(Block block) {
+        if (block == null) return false;
+        return isLocked(block) && !shouldBypassContainerRestriction(block);
     }
 
     public static boolean isOwnerOfSign(Block block, Player player) { // Requires isSign

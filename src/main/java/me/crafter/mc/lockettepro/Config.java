@@ -22,7 +22,7 @@ public class Config {
     private static Set<String> privatestrings = new HashSet<>();
     private static Set<String> additionalstrings = new HashSet<>();
     private static Set<String> everyonestrings = new HashSet<>();
-    private static Set<String> pdcclearstrings = new HashSet<>();
+    private static Set<String> containerbypassstrings = new HashSet<>();
     private static Set<String> timerstrings = new HashSet<>();
     private static String lockedcontainerpdckey = "lockettepro:locked_container";
     private static String defaultprivatestring = "[Private]";
@@ -73,12 +73,12 @@ public class Config {
         List<String> privatestringlist = config.getStringList("private-signs");
         List<String> additionalstringlist = config.getStringList("additional-signs");
         List<String> everyonestringlist = config.getStringList("everyone-signs");
-        List<String> pdcclearstringlist = config.getStringList("pdc-clear-sign-tags");
+        List<String> containerbypassstringlist = config.getStringList("container-bypass-sign-tags");
         List<String> protectionexemptstringlist = config.getStringList("protection-exempt");
         privatestrings = new HashSet<>(privatestringlist);
         additionalstrings = new HashSet<>(additionalstringlist);
         everyonestrings = new HashSet<>(everyonestringlist);
-        pdcclearstrings = new HashSet<>(pdcclearstringlist);
+        containerbypassstrings = new HashSet<>(containerbypassstringlist);
         lockedcontainerpdckey = config.getString("locked-container-pdc-key", "lockettepro:locked_container");
         if (lockedcontainerpdckey == null || lockedcontainerpdckey.isBlank()) {
             lockedcontainerpdckey = "lockettepro:locked_container";
@@ -161,8 +161,8 @@ public class Config {
         config.addDefault("additional-signs", additional_signs);
         String[] everyone_signs = {"[Everyone]", "[everyone]"};
         config.addDefault("everyone-signs", everyone_signs);
-        String[] pdc_clear_sign_tags = {"[hopper]"};
-        config.addDefault("pdc-clear-sign-tags", pdc_clear_sign_tags);
+        String[] container_bypass_sign_tags = {"[hopper]"};
+        config.addDefault("container-bypass-sign-tags", container_bypass_sign_tags);
         config.addDefault("locked-container-pdc-key", "lockettepro:locked_container");
         String[] timer_signs = {"[Timer:@]", "[timer:@]"};
         config.addDefault("timer-signs", timer_signs);
@@ -254,8 +254,8 @@ public class Config {
         return everyonestrings.contains(message);
     }
 
-    public static boolean isPdcClearSignString(String message) {
-        return pdcclearstrings.contains(message);
+    public static boolean isContainerBypassSignString(String message) {
+        return containerbypassstrings.contains(message);
     }
 
     public static String getLockedContainerPdcKeyString() {
