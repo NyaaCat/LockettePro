@@ -25,6 +25,11 @@ public class Config {
     private static Set<String> containerbypassstrings = new HashSet<>();
     private static Set<String> timerstrings = new HashSet<>();
     private static String lockedcontainerpdckey = "lockettepro:locked_container";
+    private static boolean runtimekvcacheenabled = true;
+    private static int runtimekvcachettlmillis = 1000;
+    private static int runtimekvcachemaxentries = 4096;
+    private static String permissiongroupsfile = "permission-groups.json";
+    private static int permissiongroupsautosaveseconds = 60;
     private static String defaultprivatestring = "[Private]";
     private static String defaultadditionalstring = "[More Users]";
     private static byte enablequickprotect = (byte) 1;
@@ -85,6 +90,23 @@ public class Config {
         lockedcontainerpdckey = config.getString("locked-container-pdc-key", "lockettepro:locked_container");
         if (lockedcontainerpdckey == null || lockedcontainerpdckey.isBlank()) {
             lockedcontainerpdckey = "lockettepro:locked_container";
+        }
+        runtimekvcacheenabled = config.getBoolean("runtime-kv-cache-enabled", true);
+        runtimekvcachettlmillis = config.getInt("runtime-kv-cache-ttl-millis", 1000);
+        runtimekvcachemaxentries = config.getInt("runtime-kv-cache-max-entries", 4096);
+        if (runtimekvcachettlmillis < 0) {
+            runtimekvcachettlmillis = 0;
+        }
+        if (runtimekvcachemaxentries < 256) {
+            runtimekvcachemaxentries = 256;
+        }
+        permissiongroupsfile = config.getString("permission-groups-file", "permission-groups.json");
+        if (permissiongroupsfile == null || permissiongroupsfile.isBlank()) {
+            permissiongroupsfile = "permission-groups.json";
+        }
+        permissiongroupsautosaveseconds = config.getInt("permission-groups-autosave-seconds", 60);
+        if (permissiongroupsautosaveseconds < 10) {
+            permissiongroupsautosaveseconds = 10;
         }
         protectionexempt = new HashSet<>(protectionexemptstringlist);
         defaultprivatestring = privatestringlist.get(0);
@@ -174,6 +196,11 @@ public class Config {
         config.addDefault("block-item-transfer-out", true);
         config.addDefault("block-hopper-minecart", "remove");
         config.addDefault("cache-time-seconds", 0);
+        config.addDefault("runtime-kv-cache-enabled", true);
+        config.addDefault("runtime-kv-cache-ttl-millis", 1000);
+        config.addDefault("runtime-kv-cache-max-entries", 4096);
+        config.addDefault("permission-groups-file", "permission-groups.json");
+        config.addDefault("permission-groups-autosave-seconds", 60);
 
         String[] private_signs = {"[Private]", "[private]"};
         config.addDefault("private-signs", private_signs);
@@ -287,6 +314,26 @@ public class Config {
 
     public static String getLockedContainerPdcKeyString() {
         return lockedcontainerpdckey;
+    }
+
+    public static boolean isRuntimeKvCacheEnabled() {
+        return runtimekvcacheenabled;
+    }
+
+    public static int getRuntimeKvCacheTtlMillis() {
+        return runtimekvcachettlmillis;
+    }
+
+    public static int getRuntimeKvCacheMaxEntries() {
+        return runtimekvcachemaxentries;
+    }
+
+    public static String getPermissionGroupsFile() {
+        return permissiongroupsfile;
+    }
+
+    public static int getPermissionGroupsAutosaveSeconds() {
+        return permissiongroupsautosaveseconds;
     }
 
     public static boolean isTimerSignString(String message) {

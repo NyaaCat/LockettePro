@@ -18,8 +18,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 public class LockettePro extends JavaPlugin {
+
+    private static final String PERM_PDC_ON = "lockettepro.pdc.on";
+    private static final String PERM_PDC_INFO = "lockettepro.pdc.info";
+    private static final String PERM_PDC_RENAME = "lockettepro.pdc.rename";
+    private static final String PERM_PDC_PERMISSION = "lockettepro.pdc.permission";
+    private static final String PERM_PDC_CLONE = "lockettepro.pdc.clone";
+    private static final String PERM_PDC_GROUP = "lockettepro.pdc.group";
 
     private static Plugin plugin;
     private boolean debug = false;
@@ -38,6 +46,8 @@ public class LockettePro extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BlockInventoryAccessListener(), this);
         // Dependency
         new Dependency(this);
+        PermissionGroupStore.initialize(this);
+        ContainerPdcLockManager.refreshRuntimeCacheConfig();
         // If UUID is not enabled, UUID listener won't register
         if (Config.isUuidEnabled() || Config.isLockExpire()) {
             if (Bukkit.getPluginManager().isPluginEnabled("ProtocolLib")) {
@@ -51,6 +61,7 @@ public class LockettePro extends JavaPlugin {
     }
 
     public void onDisable() {
+        PermissionGroupStore.shutdown();
         if (Config.isUuidEnabled() && Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
             DependencyProtocolLib.cleanUpProtocolLib(this);
         }
@@ -74,6 +85,7 @@ public class LockettePro extends JavaPlugin {
         commands.add("rename");
         commands.add("permission");
         commands.add("clone");
+        commands.add("group");
         commands.add("1");
         commands.add("2");
         commands.add("3");
@@ -98,6 +110,18 @@ public class LockettePro extends JavaPlugin {
             list.add("--:");
             return list;
         }
+        if (args != null && args.length == 2 && "group".equalsIgnoreCase(args[0])) {
+            return List.of("create", "delete", "add", "remove", "info", "list");
+        }
+        if (args != null && args.length == 3 && "group".equalsIgnoreCase(args[0])) {
+            String action = args[1].toLowerCase(Locale.ROOT);
+            if ("delete".equals(action) || "add".equals(action) || "remove".equals(action) || "info".equals(action)) {
+                var own = PermissionGroupStore.getOwnedGroup((sender instanceof Player p) ? p.getUniqueId() : null);
+                if (own != null) {
+                    return List.of(own.name());
+                }
+            }
+        }
         return null;
     }
 
@@ -114,6 +138,8 @@ public class LockettePro extends JavaPlugin {
                                 DependencyProtocolLib.cleanUpProtocolLib(this);
                             }
                             Config.reload();
+                            ContainerPdcLockManager.refreshRuntimeCacheConfig();
+                            PermissionGroupStore.reloadAutoSaveTask();
                             if (Config.isUuidEnabled() && Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
                                 DependencyProtocolLib.setUpProtocolLib(this);
                             }
@@ -255,19 +281,46 @@ public class LockettePro extends JavaPlugin {
                         }
                         break;
                     case "on":
+                        if (!player.hasPermission(PERM_PDC_ON)) {
+                            Utils.sendMessages(player, Config.getLang("no-permission"));
+                            break;
+                        }
                         handlePdcLockOn(player);
                         break;
                     case "info":
+                        if (!player.hasPermission(PERM_PDC_INFO)) {
+                            Utils.sendMessages(player, Config.getLang("no-permission"));
+                            break;
+                        }
                         handlePdcInfo(player);
                         break;
                     case "rename":
+                        if (!player.hasPermission(PERM_PDC_RENAME)) {
+                            Utils.sendMessages(player, Config.getLang("no-permission"));
+                            break;
+                        }
                         handlePdcRename(player, args);
                         break;
                     case "permission":
+                        if (!player.hasPermission(PERM_PDC_PERMISSION)) {
+                            Utils.sendMessages(player, Config.getLang("no-permission"));
+                            break;
+                        }
                         handlePdcPermission(player, args);
                         break;
                     case "clone":
+                        if (!player.hasPermission(PERM_PDC_CLONE)) {
+                            Utils.sendMessages(player, Config.getLang("no-permission"));
+                            break;
+                        }
                         handlePdcClone(player);
+                        break;
+                    case "group":
+                        if (!player.hasPermission(PERM_PDC_GROUP)) {
+                            Utils.sendMessages(player, Config.getLang("no-permission"));
+                            break;
+                        }
+                        handleGroupCommand(player, args);
                         break;
                     case "force":
                         if (debug && player.hasPermission("lockettepro.debug")) {
@@ -476,6 +529,104 @@ public class LockettePro extends JavaPlugin {
             left.values().forEach(drop -> player.getWorld().dropItemNaturally(player.getLocation(), drop));
         }
         Utils.sendMessages(player, Config.getLang("pdc-clone-given"));
+    }
+
+    private void handleGroupCommand(Player player, String[] args) {
+        if (args.length < 2) {
+            Utils.sendMessages(player, Config.getLang("group-usage"));
+            return;
+        }
+
+        String action = args[1].toLowerCase(Locale.ROOT);
+        switch (action) {
+            case "create" -> {
+                if (args.length != 3) {
+                    Utils.sendMessages(player, Config.getLang("group-create-usage"));
+                    return;
+                }
+                sendGroupResult(player, PermissionGroupStore.createGroup(player, args[2]));
+            }
+            case "delete" -> {
+                if (args.length != 3) {
+                    Utils.sendMessages(player, Config.getLang("group-delete-usage"));
+                    return;
+                }
+                sendGroupResult(player, PermissionGroupStore.deleteGroup(player, args[2]));
+            }
+            case "add" -> {
+                if (args.length != 4) {
+                    Utils.sendMessages(player, Config.getLang("group-add-usage"));
+                    return;
+                }
+                sendGroupResult(player, PermissionGroupStore.addNode(player, args[2], args[3]));
+            }
+            case "remove" -> {
+                if (args.length != 4) {
+                    Utils.sendMessages(player, Config.getLang("group-remove-usage"));
+                    return;
+                }
+                sendGroupResult(player, PermissionGroupStore.removeNode(player, args[2], args[3]));
+            }
+            case "info" -> {
+                if (args.length != 3) {
+                    Utils.sendMessages(player, Config.getLang("group-info-usage"));
+                    return;
+                }
+                PermissionGroupStore.GroupSnapshot group = PermissionGroupStore.getGroup(args[2]);
+                if (group == null) {
+                    Utils.sendMessages(player, Config.getLang("group-not-found"));
+                    return;
+                }
+                if (!group.owner().equals(player.getUniqueId())) {
+                    Utils.sendMessages(player, Config.getLang("group-not-owner"));
+                    return;
+                }
+                sendGroupInfo(player, group);
+            }
+            case "list" -> {
+                PermissionGroupStore.GroupSnapshot own = PermissionGroupStore.getOwnedGroup(player.getUniqueId());
+                if (own == null) {
+                    Utils.sendMessages(player, Config.getLang("group-list-empty"));
+                    return;
+                }
+                Utils.sendMessages(player, Config.getLang("group-list-header"));
+                player.sendMessage(ChatColor.GOLD + " - " + own.name() + ChatColor.RESET + " (" + own.nodes().size() + " nodes)");
+            }
+            default -> Utils.sendMessages(player, Config.getLang("group-usage"));
+        }
+    }
+
+    private void sendGroupInfo(Player player, PermissionGroupStore.GroupSnapshot group) {
+        Utils.sendMessages(player, Config.getLang("group-info-header"));
+        player.sendMessage(ChatColor.GOLD + " - Name: " + ChatColor.RESET + group.name());
+        UUID ownerId = group.owner();
+        Player online = Bukkit.getPlayer(ownerId);
+        String ownerText = online == null ? ownerId.toString() : online.getName() + "#" + ownerId;
+        player.sendMessage(ChatColor.GOLD + " - Owner: " + ChatColor.RESET + ownerText);
+        if (group.nodes().isEmpty()) {
+            player.sendMessage(ChatColor.GOLD + " - Nodes: " + ChatColor.RESET + ChatColor.GRAY + "(none)" + ChatColor.RESET);
+            return;
+        }
+        String rendered = String.join(
+                ChatColor.GRAY + ", " + ChatColor.RESET,
+                group.nodes().stream().map(ContainerPdcLockManager::describeSubject).toList()
+        );
+        player.sendMessage(ChatColor.GOLD + " - Nodes: " + ChatColor.RESET + rendered);
+    }
+
+    private void sendGroupResult(Player player, PermissionGroupStore.GroupEditResult result) {
+        switch (result) {
+            case SUCCESS -> Utils.sendMessages(player, Config.getLang("group-op-success"));
+            case INVALID_NAME -> Utils.sendMessages(player, Config.getLang("group-name-invalid"));
+            case ALREADY_HAS_GROUP -> Utils.sendMessages(player, Config.getLang("group-already-has-group"));
+            case NAME_EXISTS -> Utils.sendMessages(player, Config.getLang("group-name-exists"));
+            case NOT_FOUND -> Utils.sendMessages(player, Config.getLang("group-not-found"));
+            case NOT_OWNER -> Utils.sendMessages(player, Config.getLang("group-not-owner"));
+            case INVALID_NODE -> Utils.sendMessages(player, Config.getLang("group-node-invalid"));
+            case NODE_EXISTS -> Utils.sendMessages(player, Config.getLang("group-node-exists"));
+            case NODE_NOT_FOUND -> Utils.sendMessages(player, Config.getLang("group-node-not-found"));
+            case EMPTY_NODES -> Utils.sendMessages(player, Config.getLang("group-node-empty"));
+        }
     }
 
 }

@@ -13,6 +13,11 @@ block-item-transfer-in: false
 block-item-transfer-out: true
 block-hopper-minecart: remove
 cache-time-seconds: 0
+runtime-kv-cache-enabled: true
+runtime-kv-cache-ttl-millis: 1000
+runtime-kv-cache-max-entries: 4096
+permission-groups-file: 'permission-groups.json'
+permission-groups-autosave-seconds: 60
 lock-expire: false
 lock-expire-days: 999.9
 lock-default-create-time-unix: -1

@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BlockPlayerListener implements Listener {
+    private static final String PERM_PDC_CLONE = "lockettepro.pdc.clone";
+
     Particle SMOKE_PARTICLE = Particle.valueOf(
             Utils.isMinecraftVersionHigherThan(Utils.getCurrentMinecraftVersionString(), "1.20.4") ?
                     "SMOKE" : "SMOKE_NORMAL"
@@ -38,15 +40,20 @@ public class BlockPlayerListener implements Listener {
         if (LockettePro.needCheckHand() && event.getHand() != EquipmentSlot.HAND) return;
         ItemStack item = event.getItem();
         if (!ContainerPdcLockManager.isCloneItem(item)) return;
-
-        Block clickedBlock = event.getClickedBlock();
-        if (clickedBlock == null || !ContainerPdcLockManager.isContainerBlock(clickedBlock)) {
-            Utils.sendMessages(event.getPlayer(), Config.getLang("pdc-target-container-needed"));
+        Player player = event.getPlayer();
+        if (!player.hasPermission(PERM_PDC_CLONE)) {
+            Utils.sendMessages(player, Config.getLang("no-permission"));
             event.setCancelled(true);
             return;
         }
 
-        Player player = event.getPlayer();
+        Block clickedBlock = event.getClickedBlock();
+        if (clickedBlock == null || !ContainerPdcLockManager.isContainerBlock(clickedBlock)) {
+            Utils.sendMessages(player, Config.getLang("pdc-target-container-needed"));
+            event.setCancelled(true);
+            return;
+        }
+
         if (!ContainerPdcLockManager.canUseCloneTarget(clickedBlock, player)) {
             Utils.sendMessages(player, Config.getLang("pdc-no-owner-permission"));
             Utils.playAccessDenyEffect(player, clickedBlock);

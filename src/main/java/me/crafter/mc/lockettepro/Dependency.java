@@ -52,6 +52,13 @@ public class Dependency {
     }
 
     public static boolean isPermissionGroupOf(String line, Player player) {
+        return isPermissionGroupOf(line, player, true);
+    }
+
+    public static boolean isPermissionGroupOf(String line, Player player, boolean includeRuntimeGroups) {
+        if (includeRuntimeGroups && PermissionGroupStore.isGroupReference(line)) {
+            return PermissionGroupStore.matchesPlayerGroupReference(line, player);
+        }
         if (vault != null) {
             try {
                 String[] groups = permission.getPlayerGroups(player);

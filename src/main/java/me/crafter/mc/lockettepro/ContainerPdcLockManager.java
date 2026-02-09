@@ -1,5 +1,7 @@
 package me.crafter.mc.lockettepro;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -29,6 +31,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public final class ContainerPdcLockManager {
 
@@ -46,6 +49,8 @@ public final class ContainerPdcLockManager {
     private static final String CLONE_PERMISSION_KEY_PATH_PREFIX = "clone_perm.";
 
     private static final String ENTITY_HOPPER = "#hopper";
+    private static volatile Cache<String, LockData> runtimeLockDataCache = createRuntimeLockDataCache();
+    private static volatile int runtimeCacheConfigSignature = Integer.MIN_VALUE;
 
     private ContainerPdcLockManager() {
     }
@@ -184,6 +189,73 @@ public final class ContainerPdcLockManager {
         }
     }
 
+    private static Cache<String, LockData> createRuntimeLockDataCache() {
+        CacheBuilder<Object, Object> builder = CacheBuilder.newBuilder();
+        if (Config.isRuntimeKvCacheEnabled()) {
+            int ttl = Math.max(0, Config.getRuntimeKvCacheTtlMillis());
+            int maxEntries = Math.max(256, Config.getRuntimeKvCacheMaxEntries());
+            builder.maximumSize(maxEntries);
+            if (ttl > 0) {
+                builder.expireAfterWrite(ttl, TimeUnit.MILLISECONDS);
+            }
+        } else {
+            builder.maximumSize(1);
+            builder.expireAfterWrite(1, TimeUnit.MILLISECONDS);
+        }
+        return builder.build();
+    }
+
+    private static int getRuntimeCacheConfigSignature() {
+        int signature = Config.isRuntimeKvCacheEnabled() ? 1 : 0;
+        signature = 31 * signature + Config.getRuntimeKvCacheTtlMillis();
+        signature = 31 * signature + Config.getRuntimeKvCacheMaxEntries();
+        return signature;
+    }
+
+    private static void ensureRuntimeCacheConfiguration() {
+        int signature = getRuntimeCacheConfigSignature();
+        if (runtimeCacheConfigSignature == signature) {
+            return;
+        }
+        synchronized (ContainerPdcLockManager.class) {
+            if (runtimeCacheConfigSignature == signature) {
+                return;
+            }
+            runtimeLockDataCache = createRuntimeLockDataCache();
+            runtimeCacheConfigSignature = signature;
+        }
+    }
+
+    public static void refreshRuntimeCacheConfig() {
+        synchronized (ContainerPdcLockManager.class) {
+            runtimeLockDataCache = createRuntimeLockDataCache();
+            runtimeCacheConfigSignature = getRuntimeCacheConfigSignature();
+        }
+    }
+
+    public static void clearRuntimeCache() {
+        ensureRuntimeCacheConfiguration();
+        runtimeLockDataCache.invalidateAll();
+    }
+
+    public static void invalidateRuntimeCache(Block block) {
+        if (block == null) return;
+        ensureRuntimeCacheConfiguration();
+        if (!Config.isRuntimeKvCacheEnabled()) return;
+
+        if (isContainerBlock(block)) {
+            for (Block related : getLinkedContainerBlocks(block)) {
+                runtimeLockDataCache.invalidate(toRuntimeCacheKey(related));
+            }
+        } else {
+            runtimeLockDataCache.invalidate(toRuntimeCacheKey(block));
+        }
+    }
+
+    private static String toRuntimeCacheKey(Block block) {
+        return block.getWorld().getUID() + ":" + block.getX() + ":" + block.getY() + ":" + block.getZ();
+    }
+
     public static Block getTargetedContainer(Player player) {
         Block block = player.getTargetBlockExact(8);
         if (block == null) return null;
@@ -248,11 +320,14 @@ public final class ContainerPdcLockManager {
         if (subject.startsWith("#")) {
             return false;
         }
+        if (PermissionGroupStore.isGroupReference(subject)) {
+            return PermissionGroupStore.matchesPlayerGroupReference(subject, player);
+        }
         if (subject.startsWith("[") && subject.endsWith("]")) {
             if (Config.isEveryoneSignString(subject) || Config.isEveryoneSignString(subject.toLowerCase(Locale.ROOT))) {
                 return true;
             }
-            if (Dependency.isPermissionGroupOf(subject, player)) {
+            if (Dependency.isPermissionGroupOf(subject, player, false)) {
                 return true;
             }
             return Dependency.isScoreboardTeamOf(subject, player);
@@ -289,7 +364,25 @@ public final class ContainerPdcLockManager {
         if (!isContainerBlock(block)) {
             return new LockData(false, false, new LinkedHashMap<>());
         }
+        ensureRuntimeCacheConfiguration();
+        if (!Config.isRuntimeKvCacheEnabled()) {
+            return readLockData(block);
+        }
 
+        String key = toRuntimeCacheKey(block);
+        LockData cached = runtimeLockDataCache.getIfPresent(key);
+        if (cached != null) {
+            return cached;
+        }
+
+        LockData loaded = readLockData(block);
+        for (Block related : getLinkedContainerBlocks(block)) {
+            runtimeLockDataCache.put(toRuntimeCacheKey(related), loaded);
+        }
+        return loaded;
+    }
+
+    private static LockData readLockData(Block block) {
         boolean hasPdc = false;
         boolean locked = false;
         LinkedHashMap<String, PermissionAccess> permissions = new LinkedHashMap<>();
@@ -346,6 +439,7 @@ public final class ContainerPdcLockManager {
 
     public static boolean writeLockData(Block block, boolean locked, Map<String, PermissionAccess> newPermissions) {
         if (!isContainerBlock(block)) return false;
+        invalidateRuntimeCache(block);
 
         LinkedHashMap<String, PermissionAccess> permissions = new LinkedHashMap<>();
         if (newPermissions != null) {
@@ -396,11 +490,13 @@ public final class ContainerPdcLockManager {
         }
 
         Utils.resetCache(block);
+        invalidateRuntimeCache(block);
         return true;
     }
 
     public static boolean refreshLockedContainerTag(Block block) {
         if (!isContainerBlock(block)) return false;
+        invalidateRuntimeCache(block);
         LockData data = getLockData(block);
         if (!data.hasPdcData()) return false;
 
@@ -420,6 +516,7 @@ public final class ContainerPdcLockManager {
         }
 
         Utils.resetCache(block);
+        invalidateRuntimeCache(block);
         return true;
     }
 
@@ -432,6 +529,13 @@ public final class ContainerPdcLockManager {
         for (Map.Entry<String, PermissionAccess> entry : permissions.entrySet()) {
             if (entry.getValue() == PermissionAccess.NONE) continue;
             String subject = entry.getKey();
+            if (PermissionGroupStore.isGroupReference(subject)) {
+                String groupName = PermissionGroupStore.extractGroupName(subject);
+                if (groupName != null && PermissionGroupStore.groupAllowsEveryone(groupName)) {
+                    return true;
+                }
+                continue;
+            }
             if (subject.startsWith("[") && subject.endsWith("]")) {
                 if (Config.isEveryoneSignString(subject) || Config.isEveryoneSignString(subject.toLowerCase(Locale.ROOT))) {
                     return true;
@@ -445,6 +549,13 @@ public final class ContainerPdcLockManager {
         for (Map.Entry<String, PermissionAccess> entry : permissions.entrySet()) {
             if (entry.getValue() == PermissionAccess.NONE) continue;
             String subject = entry.getKey();
+            if (PermissionGroupStore.isGroupReference(subject)) {
+                String groupName = PermissionGroupStore.extractGroupName(subject);
+                if (groupName != null && PermissionGroupStore.groupHasContainerBypass(groupName)) {
+                    return true;
+                }
+                continue;
+            }
             if (ENTITY_HOPPER.equalsIgnoreCase(subject)) {
                 return true;
             }
@@ -490,6 +601,9 @@ public final class ContainerPdcLockManager {
         if (subject.isBlank()) return null;
 
         if (subject.startsWith("[") && subject.endsWith("]")) {
+            if (PermissionGroupStore.isGroupReference(subject)) {
+                return PermissionGroupStore.normalizeGroupReferenceIfExists(subject);
+            }
             return subject;
         }
         if (subject.startsWith("#")) {

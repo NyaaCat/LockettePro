@@ -183,11 +183,13 @@ public class Utils {
     public static void resetCache(Block block) {
         block.removeMetadata("expires", LockettePro.getPlugin());
         block.removeMetadata("locked", LockettePro.getPlugin());
+        ContainerPdcLockManager.invalidateRuntimeCache(block);
         for (BlockFace blockface : LocketteProAPI.newsfaces) {
             Block relative = block.getRelative(blockface);
             if (relative.getType() == block.getType()) {
                 relative.removeMetadata("expires", LockettePro.getPlugin());
                 relative.removeMetadata("locked", LockettePro.getPlugin());
+                ContainerPdcLockManager.invalidateRuntimeCache(relative);
             }
         }
     }

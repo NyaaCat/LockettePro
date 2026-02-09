@@ -24,3 +24,31 @@ permissions:
    lockettepro.edit:
       description: Edit sign permission
       default: true
+   lockettepro.pdc.*:
+      description: Access to all PDC lock and permission-group commands
+      default: true
+      children:
+         lockettepro.pdc.on: true
+         lockettepro.pdc.info: true
+         lockettepro.pdc.rename: true
+         lockettepro.pdc.permission: true
+         lockettepro.pdc.clone: true
+         lockettepro.pdc.group: true
+   lockettepro.pdc.on:
+      description: Enable PDC lock on targeted container (/lock on)
+      default: true
+   lockettepro.pdc.info:
+      description: View PDC lock info on targeted container (/lock info)
+      default: true
+   lockettepro.pdc.rename:
+      description: Rename a PDC-locked container you own (/lock rename)
+      default: true
+   lockettepro.pdc.permission:
+      description: Edit permissions of a PDC-locked container you own (/lock permission)
+      default: true
+   lockettepro.pdc.clone:
+      description: Create and use PDC permission clone item (/lock clone)
+      default: true
+   lockettepro.pdc.group:
+      description: Manage permission groups (/lock group ...)
+      default: true

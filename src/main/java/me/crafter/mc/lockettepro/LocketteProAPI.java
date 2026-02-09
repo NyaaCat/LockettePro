@@ -239,6 +239,12 @@ public class LocketteProAPI {
             if (Config.isEveryoneSignString(lines[i])) {
                 return true;
             }
+            if (PermissionGroupStore.isGroupReference(lines[i])) {
+                String groupName = PermissionGroupStore.extractGroupName(lines[i]);
+                if (groupName != null && PermissionGroupStore.groupAllowsEveryone(groupName)) {
+                    return true;
+                }
+            }
         }
         return false;
     }
@@ -297,6 +303,12 @@ public class LocketteProAPI {
         for (int i = 1; i < 4; i++) {
             if (Config.isContainerBypassSignString(lines[i])) {
                 return true;
+            }
+            if (PermissionGroupStore.isGroupReference(lines[i])) {
+                String groupName = PermissionGroupStore.extractGroupName(lines[i]);
+                if (groupName != null && PermissionGroupStore.groupHasContainerBypass(groupName)) {
+                    return true;
+                }
             }
         }
         return false;
