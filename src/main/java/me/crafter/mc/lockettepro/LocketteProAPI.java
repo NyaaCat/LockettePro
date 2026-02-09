@@ -100,7 +100,7 @@ public class LocketteProAPI {
         if (block != null && ContainerPdcLockManager.isContainerBlock(block)) {
             ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
             if (data.hasPdcData()) {
-                return data.isLocked() && ContainerPdcLockManager.canRead(block, player);
+                return data.isLocked() && ContainerPdcLockManager.canWrite(block, player);
             }
         }
         if (block.getType().equals(Material.LECTERN)) return true; //Lecterns can be used, but not stolen from

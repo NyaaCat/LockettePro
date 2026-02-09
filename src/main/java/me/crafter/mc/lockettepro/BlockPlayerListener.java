@@ -388,7 +388,7 @@ public class BlockPlayerListener implements Listener {
             case LEFT_CLICK_BLOCK:
             case RIGHT_CLICK_BLOCK:
                 Player player = event.getPlayer();
-                if (((LocketteProAPI.isLocked(block) && !LocketteProAPI.isUser(block, player)) ||
+                if (((LocketteProAPI.isLocked(block) && !hasInteractionAccess(block, player)) ||
                         (LocketteProAPI.isUpDownLockedDoor(block) && !LocketteProAPI.isUserUpDownLockedDoor(block, player)))
                         && !player.hasPermission("lockettepro.admin.use")) {
                     Utils.sendMessages(player, Config.getLang("block-is-locked"));
@@ -431,6 +431,16 @@ public class BlockPlayerListener implements Listener {
             default:
                 break;
         }
+    }
+
+    private boolean hasInteractionAccess(Block block, Player player) {
+        if (ContainerPdcLockManager.isContainerBlock(block)) {
+            ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+            if (data.hasPdcData() && data.isLocked()) {
+                return ContainerPdcLockManager.canRead(block, player);
+            }
+        }
+        return LocketteProAPI.isUser(block, player);
     }
 
     // Protect block from interfere block
