@@ -1,11 +1,13 @@
 package me.crafter.mc.lockettepro;
 
+import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -113,9 +115,11 @@ public class BlockPlayerListener implements Listener {
                     // Check lock info info
                     if (!locked && !LocketteProAPI.isUpDownLockedDoor(block)) {
                         // Not locked, not a locked door nearby
-                        // Put sign on
-                        Block newsign = Utils.putSignOn(block, blockface, Config.getDefaultPrivateString(), player.getName(), itemInUse.getType());
-                        Utils.removeASign(player, event.getHand());
+                        Block newsign = placeQuickLockSign(event, block, blockface, Config.getDefaultPrivateString(), player.getName(), itemInUse);
+                        if (newsign == null) {
+                            Utils.sendMessages(player, Config.getLang("cannot-lock-quick"));
+                            return;
+                        }
                         // Send message
                         Utils.sendMessages(player, Config.getLang("locked-quick"));
                         Utils.resetCache(block);
@@ -132,18 +136,24 @@ public class BlockPlayerListener implements Listener {
                         Dependency.logPlacement(player, newsign);
                     } else if (!locked && LocketteProAPI.isOwnerUpDownLockedDoor(block, player)) {
                         // Not locked, (is locked door nearby), is owner of locked door nearby
-                        Utils.putSignOn(block, blockface, Config.getDefaultAdditionalString(), "", itemInUse.getType());
-                        Utils.removeASign(player, event.getHand());
+                        Block newSign = placeQuickLockSign(event, block, blockface, Config.getDefaultAdditionalString(), "", itemInUse);
+                        if (newSign == null) {
+                            Utils.sendMessages(player, Config.getLang("cannot-lock-quick"));
+                            return;
+                        }
                         Utils.sendMessages(player, Config.getLang("additional-sign-added-quick"));
                         Utils.refreshLockedContainerPdcTagLater(block);
-                        Dependency.logPlacement(player, block.getRelative(blockface));
+                        Dependency.logPlacement(player, newSign);
                     } else if (LocketteProAPI.isOwner(block, player)) {
                         // Locked, (not locked door nearby), is owner of locked block
-                        Utils.putSignOn(block, blockface, Config.getDefaultAdditionalString(), "", itemInUse.getType());
-                        Utils.removeASign(player, event.getHand());
+                        Block newSign = placeQuickLockSign(event, block, blockface, Config.getDefaultAdditionalString(), "", itemInUse);
+                        if (newSign == null) {
+                            Utils.sendMessages(player, Config.getLang("cannot-lock-quick"));
+                            return;
+                        }
                         Utils.sendMessages(player, Config.getLang("additional-sign-added-quick"));
                         Utils.refreshLockedContainerPdcTagLater(block);
-                        Dependency.logPlacement(player, block.getRelative(blockface));
+                        Dependency.logPlacement(player, newSign);
                     } else {
                         // Cannot lock this block
                         Utils.sendMessages(player, Config.getLang("cannot-lock-quick"));
@@ -151,6 +161,38 @@ public class BlockPlayerListener implements Listener {
                 }
             }
         }
+    }
+
+    private Block placeQuickLockSign(
+            PlayerInteractEvent interactEvent,
+            Block attachedBlock,
+            BlockFace signFace,
+            String line1,
+            String line2,
+            ItemStack signInUse
+    ) {
+        Player player = interactEvent.getPlayer();
+        Block signLocation = attachedBlock.getRelative(signFace);
+        BlockState replacedState = signLocation.getState();
+        Block newSign = Utils.putSignOn(attachedBlock, signFace, line1, line2, signInUse.getType());
+
+        BlockPlaceEvent quickPlaceEvent = new BlockPlaceEvent(
+                newSign,
+                replacedState,
+                attachedBlock,
+                signInUse,
+                player,
+                true,
+                interactEvent.getHand()
+        );
+        Bukkit.getPluginManager().callEvent(quickPlaceEvent);
+        if (quickPlaceEvent.isCancelled() || !quickPlaceEvent.canBuild()) {
+            replacedState.update(true, false);
+            return null;
+        }
+
+        Utils.removeASign(player, interactEvent.getHand());
+        return newSign;
     }
 
     // Manual protection

@@ -11,6 +11,8 @@ coreprotect: true
 block-interfere-placement: true
 block-item-transfer-in: false
 block-item-transfer-out: true
+# Cooldown (ticks) for hopper retry when transfer is blocked by a lock.
+block-item-transfer-cooldown-ticks: 1200
 block-hopper-minecart: remove
 cache-time-seconds: 0
 runtime-kv-cache-enabled: true
@@ -44,6 +46,8 @@ timer-signs:
 - '[Timer:@]'
 - '[timer:@]'
 # material name see: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Material.html
+# tags are supported too, e.g. minecraft:doors or minecraft:trapdoors
+# prefix with '-' to remove a single material/tag from the current set
 # legacy block name and block id are not supported!
 lockables:
 - CHEST

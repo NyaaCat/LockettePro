@@ -29,9 +29,25 @@ public class LockettePro extends JavaPlugin {
     private static final String PERM_PDC_CLONE = "lockettepro.pdc.clone";
     private static final String PERM_PDC_GROUP = "lockettepro.pdc.group";
 
+    @FunctionalInterface
+    private interface PlayerSubCommandExecutor {
+        void execute(Player player, String[] args);
+    }
+
+    private static final class PlayerSubCommand {
+        private final String permission;
+        private final PlayerSubCommandExecutor executor;
+
+        private PlayerSubCommand(String permission, PlayerSubCommandExecutor executor) {
+            this.permission = permission;
+            this.executor = executor;
+        }
+    }
+
     private static Plugin plugin;
     private boolean debug = false;
     private static boolean needcheckhand = true;
+    private final Map<String, PlayerSubCommand> playerSubCommands = new LinkedHashMap<>();
 
     public void onEnable() {
         plugin = this;
@@ -48,6 +64,7 @@ public class LockettePro extends JavaPlugin {
         new Dependency(this);
         PermissionGroupStore.initialize(this);
         ContainerPdcLockManager.refreshRuntimeCacheConfig();
+        registerPlayerSubCommands();
         // If UUID is not enabled, UUID listener won't register
         if (Config.isUuidEnabled() || Config.isLockExpire()) {
             if (Bukkit.getPluginManager().isPluginEnabled("ProtocolLib")) {
@@ -78,21 +95,24 @@ public class LockettePro extends JavaPlugin {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, String[] args) {
         List<String> commands = new ArrayList<>();
-        commands.add("reload");
-        commands.add("version");
-        commands.add("on");
-        commands.add("info");
-        commands.add("rename");
-        commands.add("permission");
-        commands.add("clone");
-        commands.add("group");
-        commands.add("1");
-        commands.add("2");
-        commands.add("3");
-        commands.add("4");
-        commands.add("uuid");
-        commands.add("update");
-        commands.add("debug");
+        if (sender.hasPermission("lockettepro.reload")) commands.add("reload");
+        if (sender.hasPermission("lockettepro.version")) commands.add("version");
+        if (sender.hasPermission("lockettepro.edit")) {
+            commands.add("1");
+            commands.add("2");
+            commands.add("3");
+            commands.add("4");
+        }
+        if (sender.hasPermission("lockettepro.debug")) {
+            commands.add("debug");
+            commands.add("uuid");
+            commands.add("update");
+        }
+        for (Map.Entry<String, PlayerSubCommand> entry : playerSubCommands.entrySet()) {
+            if (sender.hasPermission(entry.getValue().permission)) {
+                commands.add(entry.getKey());
+            }
+        }
         if (args != null && args.length == 1) {
             List<String> list = new ArrayList<>();
             for (String s : commands) {
@@ -102,7 +122,7 @@ public class LockettePro extends JavaPlugin {
             }
             return list;
         }
-        if (args != null && args.length == 2 && "permission".equalsIgnoreCase(args[0])) {
+        if (args != null && args.length == 2 && "permission".equalsIgnoreCase(args[0]) && sender.hasPermission(PERM_PDC_PERMISSION)) {
             List<String> list = new ArrayList<>();
             list.add("xx:");
             list.add("rw:");
@@ -110,10 +130,10 @@ public class LockettePro extends JavaPlugin {
             list.add("--:");
             return list;
         }
-        if (args != null && args.length == 2 && "group".equalsIgnoreCase(args[0])) {
+        if (args != null && args.length == 2 && "group".equalsIgnoreCase(args[0]) && sender.hasPermission(PERM_PDC_GROUP)) {
             return List.of("create", "delete", "add", "remove", "info", "list");
         }
-        if (args != null && args.length == 3 && "group".equalsIgnoreCase(args[0])) {
+        if (args != null && args.length == 3 && "group".equalsIgnoreCase(args[0]) && sender.hasPermission(PERM_PDC_GROUP)) {
             String action = args[1].toLowerCase(Locale.ROOT);
             if ("delete".equals(action) || "add".equals(action) || "remove".equals(action) || "info".equals(action)) {
                 var own = PermissionGroupStore.getOwnedGroup((sender instanceof Player p) ? p.getUniqueId() : null);
@@ -207,6 +227,9 @@ public class LockettePro extends JavaPlugin {
                 }
                 Player player = (Player) sender;
                 String sub = args[0].toLowerCase(Locale.ROOT);
+                if (dispatchPlayerSubCommand(player, sub, args)) {
+                    return true;
+                }
                 switch (sub) {
                     case "1":
                     case "2":
@@ -280,48 +303,6 @@ public class LockettePro extends JavaPlugin {
                             Utils.sendMessages(player, Config.getLang("no-permission"));
                         }
                         break;
-                    case "on":
-                        if (!player.hasPermission(PERM_PDC_ON)) {
-                            Utils.sendMessages(player, Config.getLang("no-permission"));
-                            break;
-                        }
-                        handlePdcLockOn(player);
-                        break;
-                    case "info":
-                        if (!player.hasPermission(PERM_PDC_INFO)) {
-                            Utils.sendMessages(player, Config.getLang("no-permission"));
-                            break;
-                        }
-                        handlePdcInfo(player);
-                        break;
-                    case "rename":
-                        if (!player.hasPermission(PERM_PDC_RENAME)) {
-                            Utils.sendMessages(player, Config.getLang("no-permission"));
-                            break;
-                        }
-                        handlePdcRename(player, args);
-                        break;
-                    case "permission":
-                        if (!player.hasPermission(PERM_PDC_PERMISSION)) {
-                            Utils.sendMessages(player, Config.getLang("no-permission"));
-                            break;
-                        }
-                        handlePdcPermission(player, args);
-                        break;
-                    case "clone":
-                        if (!player.hasPermission(PERM_PDC_CLONE)) {
-                            Utils.sendMessages(player, Config.getLang("no-permission"));
-                            break;
-                        }
-                        handlePdcClone(player);
-                        break;
-                    case "group":
-                        if (!player.hasPermission(PERM_PDC_GROUP)) {
-                            Utils.sendMessages(player, Config.getLang("no-permission"));
-                            break;
-                        }
-                        handleGroupCommand(player, args);
-                        break;
                     case "force":
                         if (debug && player.hasPermission("lockettepro.debug")) {
                             Block selectedSign = Utils.getSelectedSign(player);
@@ -347,6 +328,31 @@ public class LockettePro extends JavaPlugin {
                 }
             }
         }
+        return true;
+    }
+
+    private void registerPlayerSubCommands() {
+        playerSubCommands.clear();
+        playerSubCommands.put("on", new PlayerSubCommand(PERM_PDC_ON, (player, args) -> handlePdcLockOn(player)));
+        playerSubCommands.put("info", new PlayerSubCommand(PERM_PDC_INFO, (player, args) -> handlePdcInfo(player)));
+        playerSubCommands.put("rename", new PlayerSubCommand(PERM_PDC_RENAME, this::handlePdcRename));
+        playerSubCommands.put("permission", new PlayerSubCommand(PERM_PDC_PERMISSION, this::handlePdcPermission));
+        playerSubCommands.put("clone", new PlayerSubCommand(PERM_PDC_CLONE, (player, args) -> handlePdcClone(player)));
+        playerSubCommands.put("group", new PlayerSubCommand(PERM_PDC_GROUP, this::handleGroupCommand));
+    }
+
+    private boolean dispatchPlayerSubCommand(Player player, String sub, String[] args) {
+        PlayerSubCommand command = playerSubCommands.get(sub);
+        if (command == null) {
+            return false;
+        }
+
+        if (!player.hasPermission(command.permission)) {
+            Utils.sendMessages(player, Config.getLang("no-permission"));
+            return true;
+        }
+
+        command.executor.execute(player, args);
         return true;
     }
 

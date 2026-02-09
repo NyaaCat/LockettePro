@@ -3,6 +3,7 @@ package me.crafter.mc.lockettepro;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Tag;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
@@ -36,6 +37,7 @@ public class Config {
     private static boolean blockinterfereplacement = true;
     private static boolean blockitemtransferin = false;
     private static boolean blockitemtransferout = false;
+    private static int blockitemtransfercooldownticks = 1200;
     private static int cachetime = 0;
     private static boolean cacheenabled = false;
     private static byte blockhopperminecart = 0;
@@ -77,6 +79,7 @@ public class Config {
         blockinterfereplacement = config.getBoolean("block-interfere-placement", true);
         blockitemtransferin = config.getBoolean("block-item-transfer-in", false);
         blockitemtransferout = config.getBoolean("block-item-transfer-out", true);
+        blockitemtransfercooldownticks = Math.max(0, config.getInt("block-item-transfer-cooldown-ticks", 1200));
 
         List<String> privatestringlist = config.getStringList("private-signs");
         List<String> additionalstringlist = config.getStringList("additional-signs");
@@ -158,7 +161,11 @@ public class Config {
         }
         List<String> unprocesseditems = config.getStringList("lockables");
         lockables = new HashSet<Material>();
-        for (String unprocesseditem : unprocesseditems) {
+        Iterable<Tag<Material>> blockTagCache = null;
+        for (String rawLockable : unprocesseditems) {
+            if (rawLockable == null) continue;
+            String unprocesseditem = rawLockable.trim();
+            if (unprocesseditem.isEmpty()) continue;
             if (unprocesseditem.equals("*")) {
                 Collections.addAll(lockables, Material.values());
                 plugin.getLogger().info("All blocks are default to be lockable!");
@@ -170,15 +177,40 @@ public class Config {
                 add = false;
                 unprocesseditem = unprocesseditem.substring(1);
             }
-            Material material = Material.getMaterial(unprocesseditem);
-            if (material == null || !material.isBlock()) {
-                plugin.getLogger().warning(unprocesseditem + " is not a block!");
-            } else {
+            Material material = Material.matchMaterial(unprocesseditem);
+            if (material != null && material.isBlock()) {
                 if (add) {
                     lockables.add(material);
                 } else {
                     lockables.remove(material);
                 }
+                continue;
+            }
+
+            if (blockTagCache == null) {
+                blockTagCache = Bukkit.getServer().getTags(Tag.REGISTRY_BLOCKS, Material.class);
+            }
+
+            String normalized = unprocesseditem.toLowerCase(Locale.ROOT).replaceAll("\\s+", "_");
+            if (!normalized.contains(":")) {
+                normalized = "minecraft:" + normalized;
+            }
+
+            boolean matchedTag = false;
+            for (Tag<Material> tag : blockTagCache) {
+                if (tag.getKey().asString().equalsIgnoreCase(normalized)) {
+                    if (add) {
+                        lockables.addAll(tag.getValues());
+                    } else {
+                        lockables.removeAll(tag.getValues());
+                    }
+                    matchedTag = true;
+                    break;
+                }
+            }
+
+            if (!matchedTag) {
+                plugin.getLogger().warning(unprocesseditem + " is neither a block material nor a block tag.");
             }
         }
         lockables.removeAll(Tag.SIGNS.getValues());
@@ -194,6 +226,7 @@ public class Config {
         config.addDefault("block-interfere-placement", true);
         config.addDefault("block-item-transfer-in", false);
         config.addDefault("block-item-transfer-out", true);
+        config.addDefault("block-item-transfer-cooldown-ticks", 1200);
         config.addDefault("block-hopper-minecart", "remove");
         config.addDefault("cache-time-seconds", 0);
         config.addDefault("runtime-kv-cache-enabled", true);
@@ -262,6 +295,10 @@ public class Config {
 
     public static boolean isItemTransferOutBlocked() {
         return blockitemtransferout;
+    }
+
+    public static int getItemTransferCooldownTicks() {
+        return blockitemtransfercooldownticks;
     }
 
     public static byte getHopperMinecartAction() {

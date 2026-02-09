@@ -3,6 +3,7 @@ package me.crafter.mc.lockettepro;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.DoubleChest;
+import org.bukkit.block.Hopper;
 import org.bukkit.entity.minecart.HopperMinecart;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -32,6 +33,8 @@ public class BlockInventoryMoveListener implements Listener {
                             ((HopperMinecart) event.getDestination().getHolder()).remove();
                         }
                     }
+                } else if (event.getDestination().getHolder() instanceof Hopper hopper) {
+                    hopper.setTransferCooldown(Config.getItemTransferCooldownTicks());
                 }
                 return;
             }
@@ -39,6 +42,9 @@ public class BlockInventoryMoveListener implements Listener {
         if (Config.isItemTransferInBlocked()) {
             if (isInventoryLocked(event.getDestination())) {
                 event.setCancelled(true);
+                if (event.getSource().getHolder() instanceof Hopper hopper) {
+                    hopper.setTransferCooldown(Config.getItemTransferCooldownTicks());
+                }
                 return;
             }
         }
