@@ -97,12 +97,14 @@ public class BlockPlayerListener implements Listener {
                         Utils.putSignOn(block, blockface, Config.getDefaultAdditionalString(), "", itemInUse.getType());
                         Utils.removeASign(player, event.getHand());
                         Utils.sendMessages(player, Config.getLang("additional-sign-added-quick"));
+                        Utils.refreshLockedContainerPdcTagLater(block);
                         Dependency.logPlacement(player, block.getRelative(blockface));
                     } else if (LocketteProAPI.isOwner(block, player)) {
                         // Locked, (not locked door nearby), is owner of locked block
                         Utils.putSignOn(block, blockface, Config.getDefaultAdditionalString(), "", itemInUse.getType());
                         Utils.removeASign(player, event.getHand());
                         Utils.sendMessages(player, Config.getLang("additional-sign-added-quick"));
+                        Utils.refreshLockedContainerPdcTagLater(block);
                         Dependency.logPlacement(player, block.getRelative(blockface));
                     } else {
                         // Cannot lock this block
@@ -168,6 +170,7 @@ public class BlockPlayerListener implements Listener {
                         event.setLine(0, Config.getLang("sign-error"));
                     } else {
                         Utils.sendMessages(player, Config.getLang("additional-sign-added-manual"));
+                        Utils.refreshLockedContainerPdcTagLater(block);
                     }
                 } else if (LocketteProAPI.isOwner(block, player)) {
                     if (LocketteProAPI.isLockString(topline)) {
@@ -175,6 +178,7 @@ public class BlockPlayerListener implements Listener {
                         event.setLine(0, Config.getLang("sign-error"));
                     } else {
                         Utils.sendMessages(player, Config.getLang("additional-sign-added-manual"));
+                        Utils.refreshLockedContainerPdcTagLater(block);
                     }
                 } else { // Not possible to fall here except override
                     Utils.sendMessages(player, Config.getLang("block-already-locked-manual"));

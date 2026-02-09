@@ -214,7 +214,7 @@ public class Utils {
     public static void refreshLockedContainerPdcTag(Block block) {
         if (block == null) return;
 
-        boolean locked = LocketteProAPI.isLocked(block);
+        boolean locked = LocketteProAPI.isLocked(block) && !LocketteProAPI.isOpenToEveryone(block);
         setLockedContainerPdc(block, locked);
         syncConnectedContainerPdc(block, locked);
     }

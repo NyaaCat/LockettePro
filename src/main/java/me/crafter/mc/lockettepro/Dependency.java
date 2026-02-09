@@ -66,6 +66,7 @@ public class Dependency {
 
     public static boolean isScoreboardTeamOf(String line, Player player) {
         ScoreboardManager scoreboardManager = Bukkit.getScoreboardManager();
+        if (scoreboardManager == null) return false;
         Team team = scoreboardManager.getMainScoreboard().getEntityTeam(player);
         if (team == null) {
             return false;

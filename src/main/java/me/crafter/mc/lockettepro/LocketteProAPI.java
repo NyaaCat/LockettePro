@@ -162,6 +162,63 @@ public class LocketteProAPI {
         return false;
     }
 
+    public static boolean isOpenToEveryone(Block block) {
+        if (block == null) return false;
+        return isOpenToEveryoneByTag(block);
+    }
+
+    private static boolean isOpenToEveryoneByTag(Block block) {
+        if (block.getBlockData() instanceof Door) {
+            Block[] doors = getDoors(block);
+            if (doors == null) return false;
+            for (BlockFace doorface : newsfaces) {
+                Block relative0 = doors[0].getRelative(doorface), relative1 = doors[1].getRelative(doorface);
+                if (relative0.getType() == doors[0].getType() && relative1.getType() == doors[1].getType()) {
+                    if (isOpenToEveryoneSingleBlock(relative1.getRelative(BlockFace.UP), doorface.getOppositeFace()))
+                        return true;
+                    if (isOpenToEveryoneSingleBlock(relative1, doorface.getOppositeFace())) return true;
+                    if (isOpenToEveryoneSingleBlock(relative0, doorface.getOppositeFace())) return true;
+                    if (isOpenToEveryoneSingleBlock(relative0.getRelative(BlockFace.DOWN), doorface.getOppositeFace()))
+                        return true;
+                }
+            }
+            if (isOpenToEveryoneSingleBlock(doors[1].getRelative(BlockFace.UP), null)) return true;
+            if (isOpenToEveryoneSingleBlock(doors[1], null)) return true;
+            if (isOpenToEveryoneSingleBlock(doors[0], null)) return true;
+            if (isOpenToEveryoneSingleBlock(doors[0].getRelative(BlockFace.DOWN), null)) return true;
+        } else if (block.getBlockData() instanceof Chest) {
+            BlockFace chestface = getRelativeChestFace(block);
+            if (chestface != null) {
+                Block relativechest = block.getRelative(chestface);
+                if (isOpenToEveryoneSingleBlock(relativechest, chestface.getOppositeFace())) return true;
+            }
+        }
+        return isOpenToEveryoneSingleBlock(block, null);
+    }
+
+    public static boolean isOpenToEveryoneSingleBlock(Block block, BlockFace exempt) {
+        for (BlockFace blockface : newsfaces) {
+            if (blockface == exempt) continue;
+            Block relativeblock = block.getRelative(blockface);
+            if (isLockSignOrAdditionalSign(relativeblock) && getFacing(relativeblock) == blockface) {
+                if (isEveryoneOnSign(relativeblock)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static boolean isEveryoneOnSign(Block block) { // Requires (isLockSign or isAdditionalSign)
+        String[] lines = ((Sign) block.getState()).getSide(Side.FRONT).getLines();
+        for (int i = 1; i < 4; i++) {
+            if (Config.isEveryoneSignString(lines[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static boolean isOwnerOfSign(Block block, Player player) { // Requires isSign
         Block protectedblock = getAttachedBlock(block);
         // Normal situation, that block is just locked by an adjacent sign

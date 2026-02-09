@@ -203,6 +203,7 @@ public class LockettePro extends JavaPlugin {
                                                 if (selectedSign != null)
                                                     Utils.updateUuidByUsername(selectedSign, Integer.parseInt(args[0]) - 1);
                                             }
+                                            Utils.refreshLockedContainerPdcTagLater(LocketteProAPI.getAttachedBlock(block));
                                             break;
                                     }
                                 } else if (LocketteProAPI.isAdditionalSign(block)) {
@@ -222,6 +223,7 @@ public class LockettePro extends JavaPlugin {
                                                 if (selectedSign != null)
                                                     Utils.updateUuidByUsername(selectedSign, Integer.parseInt(args[0]) - 1);
                                             }
+                                            Utils.refreshLockedContainerPdcTagLater(LocketteProAPI.getAttachedBlock(block));
                                             break;
                                     }
                                 } else {
