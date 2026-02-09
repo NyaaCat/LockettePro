@@ -831,7 +831,7 @@ public final class ContainerPdcLockManager {
     public static boolean clonePermissionsOwnedBy(ItemStack itemStack, Player player) {
         if (player == null || !isCloneItem(itemStack)) return false;
         Map<String, PermissionAccess> permissions = readClonePermissions(itemStack);
-        return hasOnlySelfOwners(permissions, player);
+        return hasOwnerForPlayer(permissions, player);
     }
 
     public static boolean applyCloneItem(Block targetBlock, Player operator, ItemStack itemStack) {
@@ -842,11 +842,11 @@ public final class ContainerPdcLockManager {
 
         Map<String, PermissionAccess> clonedPermissions = readClonePermissions(itemStack);
         if (clonedPermissions.isEmpty()) return false;
-        if (!hasOnlySelfOwners(clonedPermissions, operator)) return false;
+        if (!hasOwnerForPlayer(clonedPermissions, operator)) return false;
 
         LockData targetData = getLockData(targetBlock);
         if (targetData.hasPdcData() && targetData.isLocked()) {
-            if (!hasOnlySelfOwners(targetData.permissions(), operator)) return false;
+            if (!hasOwnerForPlayer(targetData.permissions(), operator)) return false;
         }
 
         boolean hasOwner = clonedPermissions.values().stream().anyMatch(v -> v == PermissionAccess.OWNER);
@@ -903,17 +903,15 @@ public final class ContainerPdcLockManager {
         }
     }
 
-    private static boolean hasOnlySelfOwners(Map<String, PermissionAccess> permissions, Player player) {
+    private static boolean hasOwnerForPlayer(Map<String, PermissionAccess> permissions, Player player) {
         if (permissions == null || permissions.isEmpty() || player == null) return false;
-        boolean foundOwner = false;
         for (Map.Entry<String, PermissionAccess> entry : permissions.entrySet()) {
             if (entry.getValue() != PermissionAccess.OWNER) continue;
-            foundOwner = true;
-            if (!isSelfSubject(player, entry.getKey())) {
-                return false;
+            if (isSelfSubject(player, entry.getKey())) {
+                return true;
             }
         }
-        return foundOwner;
+        return false;
     }
 
     private static void removeClonePermissionKeys(PersistentDataContainer pdc) {
