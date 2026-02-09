@@ -29,6 +29,7 @@ permissions:
       default: true
       children:
          lockettepro.pdc.on: true
+         lockettepro.pdc.off: true
          lockettepro.pdc.info: true
          lockettepro.pdc.rename: true
          lockettepro.pdc.permission: true
@@ -36,6 +37,9 @@ permissions:
          lockettepro.pdc.group: true
    lockettepro.pdc.on:
       description: Enable PDC lock on targeted container (/lock on)
+      default: true
+   lockettepro.pdc.off:
+      description: Disable PDC lock on targeted container (/lock off)
       default: true
    lockettepro.pdc.info:
       description: View PDC lock info on targeted container (/lock info)

@@ -349,6 +349,14 @@ public class Config {
         return containerbypassstrings.contains(message);
     }
 
+    public static Set<String> getEveryoneSignStrings() {
+        return Collections.unmodifiableSet(everyonestrings);
+    }
+
+    public static Set<String> getContainerBypassSignStrings() {
+        return Collections.unmodifiableSet(containerbypassstrings);
+    }
+
     public static String getLockedContainerPdcKeyString() {
         return lockedcontainerpdckey;
     }

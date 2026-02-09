@@ -13,7 +13,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -23,6 +25,7 @@ import java.util.UUID;
 public class LockettePro extends JavaPlugin {
 
     private static final String PERM_PDC_ON = "lockettepro.pdc.on";
+    private static final String PERM_PDC_OFF = "lockettepro.pdc.off";
     private static final String PERM_PDC_INFO = "lockettepro.pdc.info";
     private static final String PERM_PDC_RENAME = "lockettepro.pdc.rename";
     private static final String PERM_PDC_PERMISSION = "lockettepro.pdc.permission";
@@ -122,13 +125,8 @@ public class LockettePro extends JavaPlugin {
             }
             return list;
         }
-        if (args != null && args.length == 2 && "permission".equalsIgnoreCase(args[0]) && sender.hasPermission(PERM_PDC_PERMISSION)) {
-            List<String> list = new ArrayList<>();
-            list.add("xx:");
-            list.add("rw:");
-            list.add("ro:");
-            list.add("--:");
-            return list;
+        if (args != null && args.length >= 2 && "permission".equalsIgnoreCase(args[0]) && sender.hasPermission(PERM_PDC_PERMISSION)) {
+            return tabCompletePermission(args, sender);
         }
         if (args != null && args.length == 2 && "group".equalsIgnoreCase(args[0]) && sender.hasPermission(PERM_PDC_GROUP)) {
             return List.of("create", "delete", "add", "remove", "info", "list");
@@ -143,6 +141,71 @@ public class LockettePro extends JavaPlugin {
             }
         }
         return null;
+    }
+
+    private List<String> tabCompletePermission(String[] args, CommandSender sender) {
+        List<String> modes = List.of("xx:", "rw:", "ro:", "--:");
+        if (args.length == 2) {
+            String token = args[1] == null ? "" : args[1];
+            int split = token.indexOf(':');
+            if (split < 0) {
+                return filterByPrefix(modes, token);
+            }
+
+            String modePrefix = token.substring(0, split + 1);
+            String subjectPrefix = token.substring(split + 1);
+            if (!modes.contains(modePrefix.toLowerCase(Locale.ROOT))) {
+                return filterByPrefix(modes, token);
+            }
+            return filterByPrefix(
+                    buildPermissionSubjectCandidates(sender).stream()
+                            .map(subject -> modePrefix + subject)
+                            .toList(),
+                    token
+            );
+        }
+
+        if (args.length == 3 && args[1] != null && args[1].contains(":")) {
+            return filterByPrefix(buildPermissionSubjectCandidates(sender), args[2]);
+        }
+
+        return List.of();
+    }
+
+    private List<String> buildPermissionSubjectCandidates(CommandSender sender) {
+        LinkedHashSet<String> candidates = new LinkedHashSet<>();
+
+        if (sender instanceof Player player) {
+            PermissionGroupStore.GroupSnapshot own = PermissionGroupStore.getOwnedGroup(player.getUniqueId());
+            if (own != null) {
+                candidates.add("[g:" + own.name() + "]");
+            }
+        }
+
+        List<String> onlineNames = Bukkit.getOnlinePlayers()
+                .stream()
+                .map(Player::getName)
+                .sorted(String::compareToIgnoreCase)
+                .toList();
+        candidates.addAll(onlineNames);
+
+        candidates.add("#hopper");
+
+        candidates.addAll(Config.getEveryoneSignStrings());
+        candidates.addAll(Config.getContainerBypassSignStrings());
+
+        return new ArrayList<>(candidates);
+    }
+
+    private List<String> filterByPrefix(List<String> candidates, String rawPrefix) {
+        String prefix = rawPrefix == null ? "" : rawPrefix.toLowerCase(Locale.ROOT);
+        List<String> list = new ArrayList<>();
+        for (String candidate : candidates) {
+            if (candidate.toLowerCase(Locale.ROOT).startsWith(prefix)) {
+                list.add(candidate);
+            }
+        }
+        return list;
     }
 
     public boolean onCommand(@NotNull CommandSender sender, Command cmd, @NotNull String commandLabel, final String[] args) {
@@ -334,6 +397,7 @@ public class LockettePro extends JavaPlugin {
     private void registerPlayerSubCommands() {
         playerSubCommands.clear();
         playerSubCommands.put("on", new PlayerSubCommand(PERM_PDC_ON, (player, args) -> handlePdcLockOn(player)));
+        playerSubCommands.put("off", new PlayerSubCommand(PERM_PDC_OFF, (player, args) -> handlePdcLockOff(player)));
         playerSubCommands.put("info", new PlayerSubCommand(PERM_PDC_INFO, (player, args) -> handlePdcInfo(player)));
         playerSubCommands.put("rename", new PlayerSubCommand(PERM_PDC_RENAME, this::handlePdcRename));
         playerSubCommands.put("permission", new PlayerSubCommand(PERM_PDC_PERMISSION, this::handlePdcPermission));
@@ -384,6 +448,35 @@ public class LockettePro extends JavaPlugin {
             Utils.refreshLockedContainerPdcTagLater(block);
         } else {
             Utils.sendMessages(player, Config.getLang("pdc-lock-failed"));
+        }
+    }
+
+    private void handlePdcLockOff(Player player) {
+        Block block = ContainerPdcLockManager.getTargetedContainer(player);
+        if (block == null) {
+            Utils.sendMessages(player, Config.getLang("pdc-target-container-needed"));
+            return;
+        }
+
+        ContainerPdcLockManager.LockData data = ContainerPdcLockManager.getLockData(block);
+        if (!data.hasPdcData() || !data.isLocked()) {
+            Utils.sendMessages(player, Config.getLang("pdc-not-locked"));
+            return;
+        }
+
+        boolean owner = ContainerPdcLockManager.isOwner(block, player);
+        boolean adminOverride = player.hasPermission("lockettepro.admin.break");
+        if (!owner && !adminOverride) {
+            Utils.sendMessages(player, Config.getLang("pdc-no-owner-permission"));
+            Utils.playAccessDenyEffect(player, block);
+            return;
+        }
+
+        if (ContainerPdcLockManager.writeLockData(block, false, java.util.Collections.emptyMap())) {
+            Utils.sendMessages(player, Config.getLang("pdc-lock-disabled"));
+            Utils.refreshLockedContainerPdcTagLater(block);
+        } else {
+            Utils.sendMessages(player, Config.getLang("pdc-lock-disable-failed"));
         }
     }
 
@@ -478,14 +571,26 @@ public class LockettePro extends JavaPlugin {
             return;
         }
 
-        if (args.length != 2) {
+        if (args.length < 2) {
             Utils.sendMessages(player, Config.getLang("pdc-permission-usage"));
             return;
         }
 
-        ContainerPdcLockManager.PermissionMutation mutation = ContainerPdcLockManager.parsePermissionMutation(args[1]);
+        String mutationRaw = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+        if (mutationRaw.isEmpty()) {
+            Utils.sendMessages(player, Config.getLang("pdc-permission-usage"));
+            return;
+        }
+
+        ContainerPdcLockManager.PermissionMutation mutation = ContainerPdcLockManager.parsePermissionMutation(mutationRaw);
         if (mutation == null) {
             Utils.sendMessages(player, Config.getLang("pdc-permission-invalid"));
+            return;
+        }
+
+        if (ContainerPdcLockManager.isSelfSubject(player, mutation.subject())
+                && mutation.access() != ContainerPdcLockManager.PermissionAccess.OWNER) {
+            Utils.sendMessages(player, Config.getLang("pdc-self-owner-change-blocked"));
             return;
         }
 
@@ -606,8 +711,7 @@ public class LockettePro extends JavaPlugin {
         Utils.sendMessages(player, Config.getLang("group-info-header"));
         player.sendMessage(ChatColor.GOLD + " - Name: " + ChatColor.RESET + group.name());
         UUID ownerId = group.owner();
-        Player online = Bukkit.getPlayer(ownerId);
-        String ownerText = online == null ? ownerId.toString() : online.getName() + "#" + ownerId;
+        String ownerText = ContainerPdcLockManager.describeSubject(ownerId.toString());
         player.sendMessage(ChatColor.GOLD + " - Owner: " + ChatColor.RESET + ownerText);
         if (group.nodes().isEmpty()) {
             player.sendMessage(ChatColor.GOLD + " - Nodes: " + ChatColor.RESET + ChatColor.GRAY + "(none)" + ChatColor.RESET);

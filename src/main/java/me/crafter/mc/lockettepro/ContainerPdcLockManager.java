@@ -6,6 +6,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Container;
@@ -51,7 +52,9 @@ public final class ContainerPdcLockManager {
 
     private static final String ENTITY_HOPPER = "#hopper";
     private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
+    private static final String PLAYER_NAME_CACHE_MISS = "";
     private static volatile Cache<String, LockData> runtimeLockDataCache = createRuntimeLockDataCache();
+    private static volatile Cache<UUID, String> runtimePlayerNameCache = createRuntimePlayerNameCache();
     private static volatile int runtimeCacheConfigSignature = Integer.MIN_VALUE;
 
     private ContainerPdcLockManager() {
@@ -207,6 +210,13 @@ public final class ContainerPdcLockManager {
         return builder.build();
     }
 
+    private static Cache<UUID, String> createRuntimePlayerNameCache() {
+        return CacheBuilder.newBuilder()
+                .maximumSize(8192)
+                .expireAfterAccess(30, TimeUnit.MINUTES)
+                .build();
+    }
+
     private static int getRuntimeCacheConfigSignature() {
         int signature = Config.isRuntimeKvCacheEnabled() ? 1 : 0;
         signature = 31 * signature + Config.getRuntimeKvCacheTtlMillis();
@@ -231,6 +241,7 @@ public final class ContainerPdcLockManager {
     public static void refreshRuntimeCacheConfig() {
         synchronized (ContainerPdcLockManager.class) {
             runtimeLockDataCache = createRuntimeLockDataCache();
+            runtimePlayerNameCache = createRuntimePlayerNameCache();
             runtimeCacheConfigSignature = getRuntimeCacheConfigSignature();
         }
     }
@@ -238,6 +249,7 @@ public final class ContainerPdcLockManager {
     public static void clearRuntimeCache() {
         ensureRuntimeCacheConfiguration();
         runtimeLockDataCache.invalidateAll();
+        runtimePlayerNameCache.invalidateAll();
     }
 
     public static void invalidateRuntimeCache(Block block) {
@@ -594,6 +606,7 @@ public final class ContainerPdcLockManager {
 
         String subject = normalizeSubject(subjectRaw);
         if (subject == null || subject.isBlank()) return null;
+        if (access == PermissionAccess.OWNER && !isOwnerSubject(subject)) return null;
         return new PermissionMutation(access, subject);
     }
 
@@ -638,12 +651,55 @@ public final class ContainerPdcLockManager {
                 UUID uuid = UUID.fromString(subject);
                 Player online = Bukkit.getPlayer(uuid);
                 if (online != null) {
+                    runtimePlayerNameCache.put(uuid, online.getName());
                     return online.getName() + "#" + uuid;
                 }
+                String cachedName = runtimePlayerNameCache.getIfPresent(uuid);
+                if (cachedName != null) {
+                    if (cachedName.isEmpty()) {
+                        return subject;
+                    }
+                    return cachedName + "#" + uuid;
+                }
+                OfflinePlayer offline = Bukkit.getOfflinePlayer(uuid);
+                String offlineName = offline.getName();
+                if (offlineName == null || offlineName.isBlank()) {
+                    runtimePlayerNameCache.put(uuid, PLAYER_NAME_CACHE_MISS);
+                    return subject;
+                }
+                runtimePlayerNameCache.put(uuid, offlineName);
+                return offlineName + "#" + uuid;
             } catch (IllegalArgumentException ignored) {
             }
         }
         return subject;
+    }
+
+    public static boolean isSelfSubject(Player player, String subject) {
+        if (player == null || subject == null) return false;
+        if (!isOwnerSubject(subject)) return false;
+        if (isUuid(subject)) {
+            return player.getUniqueId().toString().equalsIgnoreCase(subject);
+        }
+        return player.getName().equalsIgnoreCase(subject);
+    }
+
+    private static boolean isOwnerSubject(String subject) {
+        if (subject == null || subject.isBlank()) return false;
+        if (subject.startsWith("[") || subject.startsWith("#")) {
+            return false;
+        }
+        if (isUuid(subject)) return true;
+        for (int i = 0; i < subject.length(); i++) {
+            char c = subject.charAt(i);
+            if (!((c >= 'a' && c <= 'z')
+                    || (c >= 'A' && c <= 'Z')
+                    || (c >= '0' && c <= '9')
+                    || c == '_')) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static void applyPermissionMutation(Block block, PermissionMutation mutation) {
