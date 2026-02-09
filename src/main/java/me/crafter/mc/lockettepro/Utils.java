@@ -42,7 +42,7 @@ public class Utils {
 
     public static final String usernamepattern = "^[a-zA-Z0-9_]*$";
     public static final String LOCKED_CONTAINER_PDC_KEY_STRING = "lockettepro:locked_container";
-    private static final String LOCKED_CONTAINER_PDC_KEY_PATH = "locked_container";
+    private static final String LOCKED_CONTAINER_PDC_KEY_DEFAULT_PATH = "locked_container";
     private static final LockedContainerPdcAccess LOCKED_CONTAINER_PDC_ACCESS = LockedContainerPdcAccess.create();
 
     private static final LoadingCache<UUID, Block> selectedsign = CacheBuilder.newBuilder()
@@ -214,7 +214,9 @@ public class Utils {
     public static void refreshLockedContainerPdcTag(Block block) {
         if (block == null) return;
 
-        boolean locked = LocketteProAPI.isLocked(block) && !LocketteProAPI.isOpenToEveryone(block);
+        boolean locked = LocketteProAPI.isLocked(block)
+                && !LocketteProAPI.isOpenToEveryone(block)
+                && !LocketteProAPI.shouldClearContainerPdcTag(block);
         setLockedContainerPdc(block, locked);
         syncConnectedContainerPdc(block, locked);
     }
@@ -247,6 +249,8 @@ public class Utils {
     }
 
     private static final class LockedContainerPdcAccess {
+        private final Method namespacedKeyFromStringMethod;
+        private final Method namespacedKeyFromStringWithPluginMethod;
         private final Constructor<?> namespacedKeyConstructor;
         private final Object byteType;
         private final Method tileStateGetPdcMethod;
@@ -255,6 +259,8 @@ public class Utils {
         private final Method pdcRemoveMethod;
 
         private LockedContainerPdcAccess(
+                Method namespacedKeyFromStringMethod,
+                Method namespacedKeyFromStringWithPluginMethod,
                 Constructor<?> namespacedKeyConstructor,
                 Object byteType,
                 Method tileStateGetPdcMethod,
@@ -262,6 +268,8 @@ public class Utils {
                 Method pdcSetMethod,
                 Method pdcRemoveMethod
         ) {
+            this.namespacedKeyFromStringMethod = namespacedKeyFromStringMethod;
+            this.namespacedKeyFromStringWithPluginMethod = namespacedKeyFromStringWithPluginMethod;
             this.namespacedKeyConstructor = namespacedKeyConstructor;
             this.byteType = byteType;
             this.tileStateGetPdcMethod = tileStateGetPdcMethod;
@@ -278,6 +286,16 @@ public class Utils {
                 Class<?> persistentDataTypeClass = Class.forName("org.bukkit.persistence.PersistentDataType");
 
                 Constructor<?> namespacedKeyConstructor = namespacedKeyClass.getConstructor(Plugin.class, String.class);
+                Method namespacedKeyFromStringMethod = null;
+                Method namespacedKeyFromStringWithPluginMethod = null;
+                try {
+                    namespacedKeyFromStringMethod = namespacedKeyClass.getMethod("fromString", String.class);
+                } catch (NoSuchMethodException ignored) {
+                }
+                try {
+                    namespacedKeyFromStringWithPluginMethod = namespacedKeyClass.getMethod("fromString", String.class, Plugin.class);
+                } catch (NoSuchMethodException ignored) {
+                }
                 Method tileStateGetPdcMethod = tileStateClass.getMethod("getPersistentDataContainer");
                 Method pdcHasMethod = persistentDataContainerClass.getMethod("has", namespacedKeyClass, persistentDataTypeClass);
                 Method pdcSetMethod = persistentDataContainerClass.getMethod("set", namespacedKeyClass, persistentDataTypeClass, Object.class);
@@ -285,6 +303,8 @@ public class Utils {
                 Field byteTypeField = persistentDataTypeClass.getField("BYTE");
 
                 return new LockedContainerPdcAccess(
+                        namespacedKeyFromStringMethod,
+                        namespacedKeyFromStringWithPluginMethod,
                         namespacedKeyConstructor,
                         byteTypeField.get(null),
                         tileStateGetPdcMethod,
@@ -293,7 +313,7 @@ public class Utils {
                         pdcRemoveMethod
                 );
             } catch (ReflectiveOperationException ignored) {
-                return new LockedContainerPdcAccess(null, null, null, null, null, null);
+                return new LockedContainerPdcAccess(null, null, null, null, null, null, null, null);
             }
         }
 
@@ -308,8 +328,38 @@ public class Utils {
 
         Object createKey() {
             if (!isSupported()) return null;
+            String keyString = Config.getLockedContainerPdcKeyString();
+            if (keyString == null || keyString.isBlank()) {
+                keyString = LOCKED_CONTAINER_PDC_KEY_STRING;
+            }
+
+            if (this.namespacedKeyFromStringWithPluginMethod != null) {
+                try {
+                    Object key = this.namespacedKeyFromStringWithPluginMethod.invoke(null, keyString, LockettePro.getPlugin());
+                    if (key != null) return key;
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
+
+            if (this.namespacedKeyFromStringMethod != null) {
+                try {
+                    Object key = this.namespacedKeyFromStringMethod.invoke(null, keyString);
+                    if (key != null) return key;
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
+
+            String keyPath = keyString;
+            int separator = keyPath.indexOf(':');
+            if (separator >= 0) {
+                keyPath = keyPath.substring(separator + 1);
+            }
+            if (keyPath.isEmpty()) {
+                keyPath = LOCKED_CONTAINER_PDC_KEY_DEFAULT_PATH;
+            }
+
             try {
-                return this.namespacedKeyConstructor.newInstance(LockettePro.getPlugin(), LOCKED_CONTAINER_PDC_KEY_PATH);
+                return this.namespacedKeyConstructor.newInstance(LockettePro.getPlugin(), keyPath);
             } catch (ReflectiveOperationException ignored) {
                 return null;
             }

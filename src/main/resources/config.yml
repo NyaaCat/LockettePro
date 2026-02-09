@@ -27,6 +27,9 @@ additional-signs:
 everyone-signs:
 - '[Everyone]'
 - '[everyone]'
+pdc-clear-sign-tags:
+- '[hopper]'
+locked-container-pdc-key: 'lockettepro:locked_container'
 timer-signs:
 - '[Timer:@]'
 - '[timer:@]'
