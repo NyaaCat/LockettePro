@@ -2,7 +2,7 @@
 
 <!-- For Alerts: https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts -->
 > [!CAUTION]\
-> ***Versions for Minecraft 1.21 are not fully tested yet.***  
+> ***Versions for Minecraft 1.21 and 26.1 are not fully tested yet.***  
 > Please create an issue if you find anything wrong. Thank you.  
 
 All versions can be found at [Nyaa CI server](https://ci.nyaacat.com/job/LockettePro/) 
