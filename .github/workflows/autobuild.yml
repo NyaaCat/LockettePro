@@ -19,7 +19,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'oracle'
-          java-version: '21'
+          java-version: '25'
       - name: checkout repo
         uses: actions/checkout@v4
       - name: build project with maven

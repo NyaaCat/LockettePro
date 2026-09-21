@@ -6,7 +6,10 @@ plugins {
 }
 
 group = "me.crafter.mc"
-version = "2.16"
+version = "2.17"
+
+// Minecraft/Pewpew 26.2 API level advertised in plugin.yml
+val apiVersion = "26.2"
 
 repositories {
     mavenCentral()
@@ -18,7 +21,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:26.2.build.123-stable")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7") {
         isTransitive = false
     }
@@ -28,13 +31,13 @@ dependencies {
     compileOnly("com.comphenix.protocol:ProtocolLib:5.4.0-SNAPSHOT") {
         isTransitive = false
     }
-    compileOnly("net.coreprotect:coreprotect:22.4") {
+    compileOnly("net.coreprotect:coreprotect:24.0") {
         isTransitive = false
     }
 }
 
 java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
+    toolchain.languageVersion.set(JavaLanguageVersion.of(25))
 }
 
 publishing {
@@ -59,11 +62,12 @@ tasks {
     compileJava {
         options.compilerArgs.add("-Xlint:deprecation")
         options.encoding = "UTF-8"
+        options.release.set(25)
     }
 
     processResources {
         filesMatching("**/plugin.yml") {
-            expand("version" to project.version)
+            expand("version" to project.version, "apiVersion" to apiVersion)
         }
     }
 
